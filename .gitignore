@@ -305,6 +305,9 @@ paket-files/
 # Python Tools for Visual Studio (PTVS)
 __pycache__/
 *.pyc
+venv/
+trained_models/
+datasets/
 
 # Cake - Uncomment if you are using it
 # tools/**
