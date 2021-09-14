@@ -1,12 +1,12 @@
 import os
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageEnhance
 import cv2
 import albumentations as alb
 import numpy as np
 from tqdm import tqdm
 
-RESIZE_W = 601
-RESIZE_H = 85
+RESIZE_W = 1800
+RESIZE_H = 210
 PATH = "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_4_resized\\"
 
 test_transform = alb.Compose(  # sharp formulas
@@ -186,9 +186,18 @@ def make_fix_size(path):
         img = Image.open(path + d)
         if img.size[0] <= RESIZE_W and img.size[1] <= RESIZE_H:
             background = Image.new('RGBA', (RESIZE_W, RESIZE_H), (255, 255, 255, 255))
-            background.paste(img, (0, 0))
-            background.save(f"C:\\Users\\shace\\Desktop\\formula_images_png_4_resized\\{d}")
+            background.paste(img, (int(RESIZE_W / 2) - int(img.size[0] / 2) , int(RESIZE_H / 2) - int(img.size[1] / 2)))
+            background.save(f"C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\{d}")
         else:
             print(f"image {d} is too big! w = {img.size[0]} ; h = {img.size[1]}")
 
 
+def sharpen_images(path="C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_4_large_resized\\40cbd3ab41.png", factor = 2):
+    im = Image.open(path)
+    im.show()
+    enhancer = ImageEnhance.Sharpness(im)
+    im_s_1 = enhancer.enhance(factor)
+    im_s_1.show()
+
+
+make_fix_size("C:/Users/shace/Desktop/temp/")

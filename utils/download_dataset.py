@@ -8,7 +8,7 @@ import random
 import numpy as np
 import cv2
 
-CAPTION_PATH = "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\Untitled-3.json"
+CAPTION_PATH = "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\4_dataset_large.json"
 
 
 dct = {}
@@ -29,12 +29,15 @@ def codecogs_translate(latex: str):
     return res.replace("%9", "%09")
 
 
+files = os.listdir("C:/Users/shace/Desktop/temp/")
 def func_5(start, end):  # download latex images
     dict_temp = dict(list(dct.items())[start:end])
     for k,v in dict_temp.items():
+        if k + ".png" in files:
+            continue
         res = codecogs_translate(v)
         try:
-            urllib.request.urlretrieve(f"https://latex.codecogs.com/png.download?%5Cdpi%7B100%7D%20%5Cbg_white%20%5Clarge%20{res}", 'C:/Users/shace/Desktop/formula_images_png_4/' + k + ".png")
+            urllib.request.urlretrieve(f"https://latex.codecogs.com/png.download?%5Cdpi%7B300%7D%20%5Cbg_white%20%5Csmall%20{res}", 'C:/Users/shace/Desktop/temp/' + k + ".png")
         except:
             with open("C:/Users/shace/Desktop/errors.txt", "a")  as f:
                 f.write(f"\nkey - {k}  val = {v}  res = {res}\n")
@@ -149,13 +152,13 @@ def func_7(limit): # find exact symbol in math image using cv2
 
             # cv2.waitKey(0)
     
-
-# x = [threading.Thread(target=func_5, args=(0, 7452)),
-#      threading.Thread(target=func_5, args=(7452, 14904)),
-#      threading.Thread(target=func_5, args=(14904, 22356)),
-#      threading.Thread(target=func_5, args=(22356, 29808)),
-#      threading.Thread(target=func_5, args=(29808, 37260)),
-#      threading.Thread(target=func_5, args=(37260, 44718))]
+   
+# x = [threading.Thread(target=func_5, args=(0, 16673)),
+#      threading.Thread(target=func_5, args=(16673, 33346)),
+#      threading.Thread(target=func_5, args=(33346, 50019)),
+#      threading.Thread(target=func_5, args=(50019, 66692)),
+#      threading.Thread(target=func_5, args=(66692, 83365)),
+#      threading.Thread(target=func_5, args=(83365, 100040))]
 # for thread in x:
 #     thread.start()
 # for thread in x:
