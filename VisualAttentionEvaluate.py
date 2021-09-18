@@ -117,35 +117,15 @@ class BahdanauAttention(tf.keras.Model):
         return context_vector, attention_weights
 
 
-# class TransformerEncoderBlock(tf.keras.Model):
-#     def __init__(self, embed_dim, dense_dim, num_heads, **kwargs):
-#         super().__init__(**kwargs)
-#         self.embed_dim = embed_dim
-#         self.dense_dim = dense_dim
-#         self.num_heads = num_heads
-#         self.attention = keras.layers.MultiHeadAttention(
-#             num_heads=num_heads, key_dim=embed_dim
-#         )
-#         self.dense_proj = Dense(embed_dim, activation="relu")
-#         self.layernorm_1 = keras.layers.LayerNormalization()
-
-#     def call(self, inputs):
-#         inputs = self.dense_proj(inputs)
-#         attention_output = self.attention(
-#             query=inputs, value=inputs, key=inputs, attention_mask=None
-#         )
-#         proj_input = self.layernorm_1(inputs + attention_output)
-#         return proj_input
-
-
 class CNN_Encoder(tf.keras.Model):
     m = None
 
     def __init__(self, embedding_dim, m=1):
         super(CNN_Encoder, self).__init__()
 
-        self.gru = keras.layers.GRU(200,
+        self.gru = keras.layers.GRU(50,
                                        return_sequences=True,
+                                       return_state=True,
                                        recurrent_initializer='glorot_uniform')
         self.rescale = tf.keras.layers.experimental.preprocessing.Rescaling(1. / 127.5, offset=-1)
         self.flatten = tf.keras.layers.Flatten()
@@ -163,6 +143,7 @@ class CNN_Encoder(tf.keras.Model):
             self.conv5 = Conv2D(filters=256, kernel_size=(3, 3))
             self.pool5 = MaxPooling2D(pool_size=(1, 2))
 
+
         elif m == 2:  # Результат чуть хуже, чем у 1 и 3
             self.conv1 = Conv2D(filters=16, kernel_size=(3, 3))
             self.pool1 = AveragePooling2D()
@@ -174,6 +155,7 @@ class CNN_Encoder(tf.keras.Model):
             self.pool4 = AveragePooling2D()
             self.conv5 = Conv2D(filters=256, kernel_size=(3, 3))
             self.pool5 = AveragePooling2D(pool_size=(1, 2))
+
 
         elif m == 3:  # Epoch 92 Loss 0.256778
             self.conv1 = Conv2D(filters=16, kernel_size=(3, 3))
@@ -187,6 +169,7 @@ class CNN_Encoder(tf.keras.Model):
             self.conv5 = Conv2D(filters=256, kernel_size=(3, 3))
             self.pool5 = MaxPooling2D(pool_size=(2, 4))
 
+
         elif m == 4:  # Epoch 60 Loss 0.179976
             self.conv1 = Conv2D(filters=16, kernel_size=(3, 3))
             self.pool1 = MaxPooling2D()
@@ -199,6 +182,7 @@ class CNN_Encoder(tf.keras.Model):
             self.conv5 = Conv2D(filters=256, kernel_size=(3, 3))
             self.pool5 = MaxPooling2D(pool_size=(2, 4))
             self.conv6 = Conv2D(filters=512, kernel_size=(2, 3))
+
 
         elif m == 5:
             self.conv1_block1 = Conv2D(filters=16, kernel_size=(3, 3), padding='same', activation='relu')
@@ -224,6 +208,7 @@ class CNN_Encoder(tf.keras.Model):
             self.conv1_block6 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
             self.conv2_block6 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
 
+
         elif m == 6:
             self.conv1 = Conv2D(filters=16, kernel_size=(3, 3))
             self.pool1 = MaxPooling2D()
@@ -236,6 +221,7 @@ class CNN_Encoder(tf.keras.Model):
             self.conv5 = Conv2D(filters=256, kernel_size=(3, 3))
             self.pool5 = MaxPooling2D(pool_size=(2, 4))
             self.conv6 = Conv2D(filters=512, kernel_size=(2, 3))
+
 
         elif m == 7:
             self.conv1_block1 = Conv2D(filters=16, kernel_size=(3, 3), padding='same', activation='relu')
@@ -261,6 +247,7 @@ class CNN_Encoder(tf.keras.Model):
             self.conv1_block6 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
             self.conv2_block6 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
 
+
         elif m == 8:
             self.conv1_block1 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
             # self.conv2_block1 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
@@ -285,6 +272,7 @@ class CNN_Encoder(tf.keras.Model):
             # self.conv1_block6 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
             # self.conv2_block6 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
         
+
         elif m == 9:
             self.conv1_block1 = Conv2D(filters=64, kernel_size=(5, 5), padding='valid', activation='relu')
             # self.conv2_block1 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
@@ -304,6 +292,24 @@ class CNN_Encoder(tf.keras.Model):
 
 
         elif m == 10:
+            self.conv1_block1 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
+            # self.conv2_block1 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
+            self.pool_block1 = MaxPooling2D(pool_size=(2, 2))
+
+            self.conv1_block2 = Conv2D(filters=128, kernel_size=(3, 3), padding='same', activation='relu')
+            # self.conv2_block2 = Conv2D(filters=128, kernel_size=(3, 3), padding='same', activation='relu')
+            self.pool_block2 = MaxPooling2D(pool_size=(4, 4))
+
+            self.conv1_block3 = Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu')
+            self.conv2_block3 = Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu')
+            self.pool_block3 = MaxPooling2D(pool_size=(2, 2))
+
+            self.conv1_block4 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
+            self.pool_block4 = MaxPooling2D(pool_size=(2, 2))
+            self.conv2_block4 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
+        
+
+        elif m == 11:
             self.model = InceptionV3_convolutional_model()
 
         self.fc_00 = Dense(embedding_dim)
@@ -375,15 +381,16 @@ class CNN_Encoder(tf.keras.Model):
 
         # print(f"model = {x.shape}")
 
-        fmaps = []
-        for fmap in x:
-            fmaps.append(self.gru(fmap))
-        x = tf.stack(fmaps)
+        # fmaps = []
+        # for fmap in x:
+        #     fmaps.append(self.gru(fmap))
+            
+        # x = self.outer_comp(x)
 
         x = tf.reshape(x, (x.shape[0], -1, x.shape[3]))
         print(f"reshape_shape = {x.shape}")
 
-        # x, h, _ = self.lstm(x)
+        # x, _ = self.gru(x)
         # print(f"gru = {x}")
         # print(f"gru = {h.shape}")
         
@@ -402,6 +409,9 @@ class CNN_Encoder(tf.keras.Model):
         x = tf.nn.relu(x)
         print(f"final = {x.shape}")
         return x
+
+    def outer_comp(self, x):
+        return tf.stack(x)
 
 
 class RNN_Decoder(tf.keras.Model):
@@ -555,8 +565,8 @@ class Training:
         dec_input = tf.expand_dims([self.tokenizer.word_index['<start>']] * target.shape[0], 1)
 
         with tf.GradientTape() as tape:
-            features = encoder(img_tensor)
-            #hidden = hidden_enc
+            features= encoder(img_tensor)
+            # hidden = hidden_enc
 
             for i in range(1, target.shape[1]):
                 # passing the features through the decoder
@@ -866,6 +876,7 @@ class Prediction:
         global checkpoint_path
         # attention_plot = np.zeros((self.max_length, 110))
 
+        hidden_array = []
         hidden = decoder.reset_state(batch_size=1)
 
         temp_input = tf.expand_dims(Training.load_image(image)[0], 0)
@@ -880,20 +891,27 @@ class Prediction:
     
         init = self.find_n_best(predictions, beam_width)
         results = [[obj[0], obj[1], hidden, self.tokenizer.index_word[int(obj[1])]] for obj in init]  # 0 - prob ; 1 - id ; 2 - hidden
-        #self.update_seqs(final_seqs, results)
 
         for i in range(self.max_length):
             tmp_res = []
 
             for r in results:
-                tmp_preds, tmp_hidden, _ = decoder(tf.expand_dims([r[1]], 0), features, r[2])
+                while True:
+                    tmp_preds, tmp_hidden, a_w = decoder(tf.expand_dims([r[1]], 0), features, r[2])
                 for obj in self.find_n_best(tf.nn.softmax(tmp_preds).numpy(), beam_width):
-                    tmp_res.append([obj[0] * r[0], obj[1], tmp_hidden, r[3] + self.tokenizer.index_word[int(obj[1])]])  # multiplied scores, curr id, hidden, prev id 
+                    tmp_res.append([obj[0] * r[0], obj[1], tmp_hidden, r[3] + self.tokenizer.index_word[int(obj[1])] + " ", a_w])  # multiplied scores, curr id, hidden, prev id 
 
             results.clear()
             tmp_res.sort(reverse=True, key=lambda x: x[0])
             for el in range(beam_width):    
                 results.append(tmp_res[el])
+
+            for r in results:
+                 if r[2].numpy().tolist() in hidden_array:
+                    print()
+            
+            for r in results:
+                hidden_array.append(r[2].numpy().tolist())
 
             if any(self.tokenizer.index_word[int(results[i][1])] == '<end>' for i in range(len(results))):
                 break
@@ -902,16 +920,16 @@ class Prediction:
             # if self.tokenizer.index_word[predicted_id] == '<end>':
             #     return result, None
 
-        for el in results:
-            tf.print(el[3] + "\n")
-        tf.print(results[0][3])
-        return results, None
+        # for el in results:
+        #     tf.print(el[3] + "\n")
+        # tf.print(results[0][3])
+        return [el[3] for el in results], None
 
 
 
     def categorical_evaluate(self, image, decoder, encoder):
         global checkpoint_path
-        attention_plot = np.zeros((self.max_length, 110))
+        attention_plot = np.zeros((self.max_length, 210))
 
         hidden = decoder.reset_state(batch_size=1)
 
@@ -960,7 +978,7 @@ class Prediction:
         except:
             raise IOError("Something went wrong with initializing tokenizer")
 
-        encoder = CNN_Encoder(self.embedding_dim, m=9)
+        encoder = CNN_Encoder(self.embedding_dim, m=10)
         decoder = RNN_Decoder(self.embedding_dim, self.units, self.vocab_size)
         optimizer = tf.keras.optimizers.Adam()
 
@@ -975,7 +993,8 @@ class Prediction:
         else:
             print("Restored from scratch")
 
-        result, attention_plot = self.beam_evaluate(image_path, decoder, encoder, beam_width=2)
+        result, attention_plot = self.beam_evaluate(image_path, decoder, encoder, beam_width=3)
+        return result
         #print('Prediction Caption:', ' '.join(result))
         #Training.plot_attention(image_path, result, attention_plot)
         #print(f"len res = {len(result)}")
@@ -1087,17 +1106,48 @@ class VAN:
         if not self.loaded:
             raise ValueError("Model is not loaded!")
         pred = Prediction()
-        pred.predict(image_path)
+        [print(res + "\n") for res in pred.predict(image_path)]
+
+
+    def random_predict(self, dataset_path, caption_path, number=5):
+        if not self.loaded:
+            raise ValueError("Model is not loaded!")
+        with open(caption_path, 'r+') as file:
+            capt = json.load(file)["annotations"]
+
+        parameters = {'axes.labelsize': 6,
+          'axes.titlesize': 6}
+        plt.rcParams.update(parameters)
+
+        pred = Prediction()
+        images = random.choices(capt, k=number)
+        plotting = []
+        for im in images:
+            plotting.append([im["caption"], pred.predict(dataset_path + im["image_id"] + ".png"), plt.imread(dataset_path + im["image_id"] + ".png")])  # real ; pred ; plt image
+
+        fig, axes = plt.subplots(nrows=3, ncols=3)
+
+        for ax, plot in zip(axes.flat, plotting):
+            ax.imshow(plot[2])
+            ax.set(title=f"real = {plot[0]}\npred = {plot[1][0]}")
+            ax.axis('off')
+        plt.show()
+
+        
+            
+        
+        
 
 
 # physical_devices = tf.config.list_physical_devices('GPU')
 # tf.config.experimental.set_memory_growth(physical_devices[0], True)
 # tf.data.experimental.enable_debug_mode()
 
-enable_gpu(True, gb=9)
+enable_gpu(False, gb=9)
 van = VAN("model_latex_x11")
  
-van.train()
+#van.train()
 
-
-van.predict("C:/Users/shace/Desktop/eval/1a0b7bf38d.png")
+# van.random_predict("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\", 
+#                     "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json", 5)
+van.predict("C:/Users/shace/Desktop/eval/CodeCogsEqn (37).png")

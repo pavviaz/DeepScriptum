@@ -187,7 +187,7 @@ def make_fix_size(path):
         if img.size[0] <= RESIZE_W and img.size[1] <= RESIZE_H:
             background = Image.new('RGBA', (RESIZE_W, RESIZE_H), (255, 255, 255, 255))
             background.paste(img, (int(RESIZE_W / 2) - int(img.size[0] / 2) , int(RESIZE_H / 2) - int(img.size[1] / 2)))
-            background.save(f"C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\{d}")
+            background.save(f"C:/Users/shace/Desktop\\{d}")
         else:
             print(f"image {d} is too big! w = {img.size[0]} ; h = {img.size[1]}")
 
@@ -200,4 +200,4 @@ def sharpen_images(path="C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets
     im_s_1.show()
 
 
-make_fix_size("C:/Users/shace/Desktop/temp/")
+make_fix_size("C:/Users/shace/Desktop/Новая папка/")
