@@ -1,10 +1,11 @@
 import collections
 import json
-from json import encoder
-from operator import index
+import math
+from statistics import mode
 import os
 import random
 import sys
+from numpy.core.defchararray import index
 import tensorflow as tf
 import numpy as np
 import time
@@ -15,6 +16,8 @@ import inspect
 from PIL import Image
 from matplotlib import pyplot as plt
 from tensorflow import keras
+from tensorflow.python.keras.layers.recurrent import RNN
+import six
 from tensorflow.python.profiler.trace import Trace
 from tqdm import tqdm
 from keras_preprocessing.text import tokenizer_from_json
@@ -24,6 +27,9 @@ from tensorflow.keras.layers import AveragePooling2D
 from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import TimeDistributed
+from tensorflow.keras.layers import Concatenate
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import AvgPool2D
 
 RESIZED_IMG_H = 140
 RESIZED_IMG_W = 1200
@@ -127,8 +133,9 @@ class CNN_Encoder(tf.keras.Model):
                                        return_sequences=True,
                                        return_state=True,
                                        recurrent_initializer='glorot_uniform')
-        self.rescale = tf.keras.layers.experimental.preprocessing.Rescaling(1. / 127.5, offset=-1)
+        self.rescale = tf.keras.layers.experimental.preprocessing.Rescaling(scale=1./127.5, offset=-1)
         self.flatten = tf.keras.layers.Flatten()
+        self.embedding = tf.keras.layers.Embedding(1000, embedding_dim)
 
         self.m == m
         if m == 1:  # Epoch 41 Loss 0.332003
@@ -308,14 +315,51 @@ class CNN_Encoder(tf.keras.Model):
             self.pool_block4 = MaxPooling2D(pool_size=(2, 2))
             self.conv2_block4 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
         
-
+        
         elif m == 11:
+            self.initial = Conv2D(64, (7,7), strides=2, activation='relu')
+            self.max_pooling_initial = MaxPooling2D(pool_size=(2,2))
+
+            self.batch_1_batchNorm = BatchNormalization()
+            self.batch_1_conv2d_1 = Conv2D(128, (1,1), activation='relu', padding='same')
+            self.batch_1_drop = Dropout(0.3)
+            self.batch_1_conv2d_2 = Conv2D(32, (3,3), activation='relu', padding='same')
+
+            self.batch_2 = Concatenate()
+
+            self.batch_2_batchNorm = BatchNormalization()
+            self.batch_2_conv2d_1 = Conv2D(128, (1,1), activation='relu', padding='same')
+            self.batch_2_drop = Dropout(0.4)
+            self.batch_2_conv2d_2 = Conv2D(32, (3,3), activation='relu', padding='same')
+
+            self.batch_3 = Concatenate()
+
+            self.batch_3_batchNorm = BatchNormalization()
+            self.batch_3_conv2d_1 = Conv2D(128, (1,1), activation='relu', padding='same')
+            self.batch_3_drop = Dropout(0.4)
+            self.batch_3_conv2d_2 = Conv2D(32, (3,3), activation='relu', padding='same')
+
+            self.batch_4 = Concatenate()
+
+            self.batch_4_batchNorm = BatchNormalization()
+            self.batch_4_conv2d_1 = Conv2D(128, (1,1), activation='relu', padding='same')
+            self.batch_4_drop = Dropout(0.4)
+            self.batch_4_conv2d_2 = Conv2D(32, (3,3), activation='relu', padding='same')
+
+            self.final_batch = Concatenate()
+
+            self.downsampling_batchNorm = BatchNormalization()
+            self.downsampling_conv2d_1 = Conv2D(32, (1,1), activation='relu')
+            self.downsampling_avg = AvgPool2D(pool_size=(4,4), strides=4)
+        
+
+        elif m == 12:
             self.model = InceptionV3_convolutional_model()
 
         self.fc_00 = Dense(embedding_dim)
         self.fc_0 = Dense(embedding_dim)
         self.do_0 = Dropout(0.15)
-        self.do_1 = Dropout(0.4)
+        self.do_1 = Dropout(0.5)
         # shape after fc == (batch_size, 64, embedding_dim)
         self.fc = Dense(embedding_dim)
 
@@ -349,37 +393,51 @@ class CNN_Encoder(tf.keras.Model):
         # x = self.conv2_block6(x)
         # x = self.pool_block6(x)
 
-        # x = self.conv1(x)
-        # x = tf.nn.relu(x)
-        # x = self.pool1(x)
-        # # print(f"1_shape = {x.shape}")
 
-        # x = self.conv2(x)
-        # x = tf.nn.relu(x)
-        # x = self.pool2(x)
-        # # print(f"2_shape = {x.shape}")
+        # x = self.initial(x)
+        # x = self.max_pooling_initial(x)
+        # t_x = x
 
-        # x = self.conv3(x)
+        # x = self.batch_1_batchNorm(x)
         # x = tf.nn.relu(x)
-        # x = self.pool3(x)
-        # # print(f"3_shape = {x.shape}")
+        # x = self.batch_1_conv2d_1(x)
+        # x = self.batch_1_drop(x)
+        # x = self.batch_1_conv2d_2(x)
 
-        # x = self.conv4(x)
+        # x = self.batch_2([t_x, x])
+        # t_x = x
+
+        # x = self.batch_2_batchNorm(x)
         # x = tf.nn.relu(x)
-        # x = self.pool4(x)
-        # # print(f"4_shape = {x.shape}")
+        # x = self.batch_2_conv2d_1(x)
+        # x = self.batch_2_drop(x)
+        # x = self.batch_2_conv2d_2(x)
 
-        # x = self.conv5(x)
+        # x = self.batch_3([t_x, x])
+        # t_x = x
+
+        # x = self.batch_3_batchNorm(x)
         # x = tf.nn.relu(x)
-        # x = self.pool5(x)
-        # print(f"5_shape = {x.shape}")
+        # x = self.batch_3_conv2d_1(x)
+        # x = self.batch_3_drop(x)
+        # x = self.batch_3_conv2d_2(x)
 
-        # x = self.model(x)
-        # print(f"model = {x.shape}")
-        # x = self.conv6(x)
+        # x = self.batch_4([t_x, x])
+        # t_x = x
+
+        # x = self.batch_4_batchNorm(x)
         # x = tf.nn.relu(x)
+        # x = self.batch_4_conv2d_1(x)
+        # x = self.batch_4_drop(x)
+        # x = self.batch_4_conv2d_2(x)
 
-        # print(f"model = {x.shape}")
+        # x = self.final_batch([x, t_x])
+
+        # x = self.downsampling_batchNorm(x)
+        # x = tf.nn.relu(x)
+        # x = self.downsampling_conv2d_1(x)
+        # x = self.downsampling_avg(x)
+        
 
         # fmaps = []
         # for fmap in x:
@@ -390,11 +448,12 @@ class CNN_Encoder(tf.keras.Model):
         x = tf.reshape(x, (x.shape[0], -1, x.shape[3]))
         print(f"reshape_shape = {x.shape}")
 
+        # x = self.add_timing_signal_nd(x)
+
         # x, _ = self.gru(x)
         # print(f"gru = {x}")
         # print(f"gru = {h.shape}")
         
-
         # x = self.fc_00(x)
         # x = tf.nn.relu(x)
 
@@ -403,7 +462,7 @@ class CNN_Encoder(tf.keras.Model):
         # x = self.fc_0(x)
         # x = tf.nn.relu(x)
 
-        x = self.do_1(x)
+        #x = self.do_1(x)
 
         x = self.fc(x)
         x = tf.nn.relu(x)
@@ -412,6 +471,56 @@ class CNN_Encoder(tf.keras.Model):
 
     def outer_comp(self, x):
         return tf.stack(x)
+
+
+    def add_timing_signal_nd(self, x, min_timescale=5.0, max_timescale=1.0e4):
+        """Adds a bunch of sinusoids of different frequencies to a Tensor.
+        Each channel of the input Tensor is incremented by a sinusoid of a different
+        frequency and phase in one of the positional dimensions.
+        This allows attention to learn to use absolute and relative positions.
+        Timing signals should be added to some precursors of both the query and the
+        memory inputs to attention.
+        The use of relative position is possible because sin(a+b) and cos(a+b) can be
+        experessed in terms of b, sin(a) and cos(a).
+        x is a Tensor with n "positional" dimensions, e.g. one dimension for a
+        sequence or two dimensions for an image
+        We use a geometric sequence of timescales starting with
+        min_timescale and ending with max_timescale.  The number of different
+        timescales is equal to channels // (n * 2). For each timescale, we
+        generate the two sinusoidal signals sin(timestep/timescale) and
+        cos(timestep/timescale).  All of these sinusoids are concatenated in
+        the channels dimension.
+        Args:
+            x: a Tensor with shape [batch, d1 ... dn, channels]
+            min_timescale: a float
+            max_timescale: a float
+        Returns:
+            a Tensor the same shape as x.
+        """
+        static_shape = x.get_shape().as_list()
+        num_dims = len(static_shape) - 2
+        channels = tf.shape(x)[-1]
+        num_timescales = channels // (num_dims * 2)
+        log_timescale_increment = (
+            math.log(float(max_timescale) / float(min_timescale)) /
+            (tf.compat.v1.to_float(num_timescales) - 1))
+        inv_timescales = min_timescale * tf.exp(
+            tf.compat.v1.to_float(tf.range(num_timescales)) * -log_timescale_increment)
+        for dim in six.moves.xrange(num_dims):
+            length = tf.shape(x)[dim + 1]
+            position = tf.compat.v1.to_float(tf.range(length))
+            scaled_time = tf.expand_dims(position, 1) * tf.expand_dims(
+                inv_timescales, 0)
+            signal = tf.concat([tf.sin(scaled_time), tf.cos(scaled_time)], axis=1)
+            prepad = dim * 2 * num_timescales
+            postpad = channels - (dim + 1) * 2 * num_timescales
+            signal = tf.pad(signal, [[0, 0], [prepad, postpad]])
+            for _ in six.moves.xrange(1 + dim):
+                signal = tf.expand_dims(signal, 0)
+            for _ in six.moves.xrange(num_dims - 1 - dim):
+                signal = tf.expand_dims(signal, -2)
+            x += signal
+        return x
 
 
 class RNN_Decoder(tf.keras.Model):
@@ -425,44 +534,172 @@ class RNN_Decoder(tf.keras.Model):
                                        return_state=True,
                                        recurrent_initializer='glorot_uniform')
 
-
-        self.lstm = tf.keras.layers.LSTM(self.units,
+        self.llstm = tf.keras.layers.LSTM(self.units,
                                        return_sequences=True,
                                        return_state=True,
                                        recurrent_initializer='glorot_uniform')
+
+        self.gru_cuda = tf.compat.v1.keras.layers.CuDNNGRU(units, 
+                                        return_sequences=True, 
+                                        return_state=True, 
+                                        recurrent_initializer='glorot_uniform')
+
+        self.lstm = tf.keras.layers.LSTMCell(self.units,
+                                             recurrent_initializer='glorot_uniform')
 
         self.fc1 = tf.keras.layers.Dense(self.units)
         self.fc2 = tf.keras.layers.Dense(vocab_size)
 
         self.attention = BahdanauAttention(self.units)
-        # self.encoder_2 = TransformerEncoderBlock(200, 200, 2)
 
-    def call(self, x, features, hidden):
+        self.dropout = tf.keras.layers.Dropout(0.5)
+        self.b_n = tf.keras.layers.BatchNormalization()
+
+        self.get_initial_state = self.lstm.get_initial_state
+        
+
+    def call(self, x, features, state_output, hidden):
         # defining attention as a separate mod`el
-        context_vector, attention_weights = self.attention(features, hidden)
+        context_vector, attention_weights = self.attention(features, state_output)
 
         # x shape after passing through embedding == (batch_size, 1, embedding_dim)
         x = self.embedding(x)
 
         # x shape after concatenation == (batch_size, 1, embedding_dim + hidden_size)
-        x = tf.concat([tf.expand_dims(context_vector, 1), x], axis=-1)
+        x = tf.concat([context_vector, tf.squeeze(x, axis=1)], axis=-1)
 
         # passing the concatenated vector to the GRU
-        output, state = self.gru(x)
+        state_output, state = self.lstm(x, hidden)
 
         # shape == (batch_size, max_length, hidden_size)
-        x = self.fc1(output)
+        x = self.fc1(state_output)
 
         # x shape == (batch_size * max_length, hidden_size)
-        x = tf.reshape(x, (-1, x.shape[2]))
+        # x = tf.reshape(x, (-1, x.shape[2]))
+
+        # x = self.dropout(x)
+        # x = self.b_n(x)
 
         # output shape == (batch_size * max_length, vocab)
         x = self.fc2(x)
 
-        return x, state, attention_weights
+        return x, state_output, state, attention_weights
 
     def reset_state(self, batch_size):
         return tf.zeros((batch_size, self.units))
+
+
+class Rnn_Global_Decoder(tf.keras.Model):
+    def __init__(self, embedding_dim, units, vocab_size,scoring_type = "dot"):
+        super(Rnn_Global_Decoder, self).__init__()
+
+        self.units = units
+        self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+
+        self.gru = tf.keras.layers.GRU(self.units,
+                                   return_sequences=True,
+                                   return_state=True,
+                                   recurrent_initializer='glorot_uniform')
+        
+        self.wc = tf.keras.layers.Dense(units, activation='tanh')
+        self.ws = tf.keras.layers.Dense(vocab_size)
+
+        #For Attention
+        self.wa = tf.keras.layers.Dense(units)
+        self.wb = tf.keras.layers.Dense(units)
+        
+        #For Score 3 i.e. Concat score
+        self.Vattn = tf.keras.layers.Dense(1)
+        self.wd = tf.keras.layers.Dense(units, activation='tanh')
+
+        self.scoring_type = scoring_type
+
+        
+    def call(self, sequence, features, hidden):
+        
+        # features : (64,49,256)
+        # hidden : (64,512)
+        
+        embed = self.embedding(sequence)
+        # embed ==> (64,1,256) ==> decoder_input after embedding (embedding dim=256)
+       
+        output, state = self.gru(embed)       
+        #output :(64,1,512)
+
+        score=0
+        
+        #Dot Score as per paper(Dot score : h_t (dot) h_s') (NB:just need to tweak gru units to 256)
+        '''----------------------------------------------------------'''
+        if(self.scoring_type=='dot'):
+          xt=output #(64,1,512)
+          xs=features #(256,49,64)  
+          score = tf.matmul(xt, xs, transpose_b=True) 
+               
+          #score : (64,1,49)
+
+        '''----------------------------------------------------------'''
+        '''----------------------------------------------------------'''
+
+
+
+        # General Score as per Paper ( General score: h_t (dot) Wa (dot) h_s')
+        '''----------------------------------------------------------'''
+        if(self.scoring_type=='general'):
+          score = tf.matmul(output, self.wa(features), transpose_b=True)
+          # score :(64,1,49)
+        '''----------------------------------------------------------'''
+        '''----------------------------------------------------------'''
+
+
+
+
+        # Concat score as per paper (score: VT*tanh(W[ht;hs']))    
+        '''----------------------------------------------------------'''
+        #https://www.tensorflow.org/api_docs/python/tf/tile
+        if(self.scoring_type=='concat'):
+          tiled_features = tf.tile(features, [1,1,2]) #(64,49,512)
+          tiled_output = tf.tile(output, [1,148,1]) #(64,49,512)
+          
+          concating_ht_hs = tf.concat([tiled_features,tiled_output],2) ##(64,49,1024)
+          
+          tanh_activated = self.wd(concating_ht_hs)
+          score =self.Vattn(tanh_activated)
+          #score :(64,49,1), but we want (64,1,49)
+          score= tf.squeeze(score, 2)
+          #score :(64,49)
+          score = tf.expand_dims(score, 1)
+          
+          #score :(64,1,49)
+        '''----------------------------------------------------------'''
+        '''----------------------------------------------------------'''
+
+
+
+        # alignment vector a_t
+        alignment = tf.nn.softmax(score, axis=2)
+        # alignment :(64,1,49)
+
+        # context vector c_t is the average sum of encoder output
+        context = tf.matmul(alignment, features)
+        # context : (64,1,256)
+        
+        # Combine the context vector and the LSTM output
+        
+        output = tf.concat([tf.squeeze(context, 1), tf.squeeze(output, 1)], 1)
+        # output: concat[(64,1,256):(64,1,512)] = (64,768)
+
+        output = self.wc(output)
+        # output :(64,512)
+
+        # Finally, it is converted back to vocabulary space: (batch_size, vocab_size)
+        logits = self.ws(output)
+        # logits/predictions: (64,8239) i.e. (batch_size,vocab_size))
+
+        return logits, state, alignment
+
+    def reset_state(self, batch_size):
+        return tf.zeros((batch_size, self.units))
+
 
 
 class Training:
@@ -537,20 +774,34 @@ class Training:
 
     @staticmethod
     def plot_attention(image, result, attention_plot):
-        temp_image = np.array(Image.open(image).convert('RGB'))
+        # temp_image = np.array(Image.open(image).convert('RGB'))
 
-        fig = plt.figure(figsize=(10, 10))
+        # fig = plt.figure(figsize=(10, 10))
 
-        len_result = len(result)
-        for i in range(len_result):
-            temp_att = np.resize(attention_plot[i], (8, 8))
-            grid_size = max(np.ceil(len_result / 2), 2)
-            ax = fig.add_subplot(grid_size, grid_size, i + 1)
+        # len_result = len(result)
+        # for i in range(len_result):
+        #     temp_att = np.resize(attention_plot[i], (4, 37))
+        #     grid_size = max(np.ceil(len_result / 2), 2)
+        #     ax = fig.add_subplot(grid_size, grid_size, i + 1)
+        #     ax.set_title(result[i])
+        #     img = ax.imshow(temp_image)
+        #     ax.imshow(temp_att, cmap='gray', alpha=0.6, extent=img.get_extent())
+
+        # #plt.tight_layout()
+        # plt.show()
+
+        plotting = []
+        for _ in range(len(result)):
+            plotting.append(plt.imread(image))  # real ; pred ; plt image
+
+        fig, axes = plt.subplots(nrows=2, ncols=1)
+
+        for ax, plot, i in zip(axes.flat, plotting, range(len(result))):
+            temp_att = np.resize(attention_plot[i], (4, 37))
+            img = ax.imshow(plot)
             ax.set_title(result[i])
-            img = ax.imshow(temp_image)
+            ax.axis('off')
             ax.imshow(temp_att, cmap='gray', alpha=0.6, extent=img.get_extent())
-
-        plt.tight_layout()
         plt.show()
 
 
@@ -560,17 +811,19 @@ class Training:
 
         # initializing the hidden state for each batch
         # because the captions are not related from image to image
-        hidden = decoder.reset_state(batch_size=target.shape[0])
+        #hidden = decoder.reset_state(batch_size=target.shape[0])
+        hidden = decoder.get_initial_state(batch_size=target.shape[0], dtype="float32")
+        state_out = hidden[0] 
 
         dec_input = tf.expand_dims([self.tokenizer.word_index['<start>']] * target.shape[0], 1)
 
         with tf.GradientTape() as tape:
-            features= encoder(img_tensor)
+            features = encoder(img_tensor)
             # hidden = hidden_enc
 
             for i in range(1, target.shape[1]):
                 # passing the features through the decoder
-                predictions, hidden, _ = decoder(dec_input, features, hidden)
+                predictions, state_out, hidden, _ = decoder(dec_input, features, state_out, hidden)
 
                 loss += self.loss_function(target[:, i], predictions, loss_object)
 
@@ -874,10 +1127,10 @@ class Prediction:
 
     def beam_evaluate(self, image, decoder, encoder, beam_width=10):
         global checkpoint_path
-        # attention_plot = np.zeros((self.max_length, 110))
+        attention_plots = [np.zeros((self.max_length, 148)) for _ in range(beam_width)] 
 
-        hidden_array = []
-        hidden = decoder.reset_state(batch_size=1)
+        hidden = decoder.get_initial_state(batch_size=1, dtype="float32")
+        state_out = hidden[0] 
 
         temp_input = tf.expand_dims(Training.load_image(image)[0], 0)
 
@@ -886,52 +1139,94 @@ class Prediction:
 
         dec_input = tf.expand_dims([self.tokenizer.word_index['<start>']], 0)
 
-        predictions, hidden, _ = decoder(dec_input, features, hidden)
+        predictions, state_out, hidden, _ = decoder(dec_input, features, state_out, hidden)
         predictions = tf.nn.softmax(predictions).numpy()
     
         init = self.find_n_best(predictions, beam_width)
-        results = [[obj[0], obj[1], hidden, self.tokenizer.index_word[int(obj[1])]] for obj in init]  # 0 - prob ; 1 - id ; 2 - hidden
+        results = [[obj[0], obj[1], hidden, self.tokenizer.index_word[int(obj[1])] + " ", state_out] for obj in init]  # 0 - prob ; 1 - id ; 2 - hidden
 
         for i in range(self.max_length):
             tmp_res = []
 
             for r in results:
-                while True:
-                    tmp_preds, tmp_hidden, a_w = decoder(tf.expand_dims([r[1]], 0), features, r[2])
+                tmp_preds, tmp_state_out, tmp_hidden, attention_plot = decoder(tf.expand_dims([r[1]], 0), features, r[4], r[2])
+                
                 for obj in self.find_n_best(tf.nn.softmax(tmp_preds).numpy(), beam_width):
-                    tmp_res.append([obj[0] * r[0], obj[1], tmp_hidden, r[3] + self.tokenizer.index_word[int(obj[1])] + " ", a_w])  # multiplied scores, curr id, hidden, prev id 
+                    tmp_res.append([obj[0] + r[0], obj[1], tmp_hidden, r[3] + self.tokenizer.index_word[int(obj[1])] + " ", tmp_state_out, attention_plot])  # multiplied scores, curr id, hidden, prev id 
 
             results.clear()
             tmp_res.sort(reverse=True, key=lambda x: x[0])
-            for el in range(beam_width):    
+            # attention_plot[i] = tf.reshape(attention_weights, (-1,)).numpy()
+            for el in range(beam_width):        
                 results.append(tmp_res[el])
-
-            for r in results:
-                 if r[2].numpy().tolist() in hidden_array:
-                    print()
             
-            for r in results:
-                hidden_array.append(r[2].numpy().tolist())
+            for res, att in zip(results, attention_plots):
+                att[i] = tf.reshape(res[5], (-1,)).numpy()
 
             if any(self.tokenizer.index_word[int(results[i][1])] == '<end>' for i in range(len(results))):
                 break
-            
-            # if 
-            # if self.tokenizer.index_word[predicted_id] == '<end>':
-            #     return result, None
+
+            # if all(['<end>' in r[3] for r in results]):
+            #     break
+
 
         # for el in results:
         #     tf.print(el[3] + "\n")
         # tf.print(results[0][3])
+        #return [results[0][3]], None
         return [el[3] for el in results], None
 
 
+    def beam_evaluate_2(self, image, decoder, encoder, beam_width=5):
+        hidden = decoder.get_initial_state(batch_size=1, dtype="float32")
+        state_out = hidden[0] 
+
+        temp_input = tf.expand_dims(Training.load_image(image)[0], 0)
+
+        dec_input = tf.expand_dims([self.tokenizer.word_index['<start>']], 0)
+
+        features = encoder(temp_input)
+        result = []
+        for _ in range(self.max_length):
+            ids = []
+
+            for _ in range(beam_width):
+                predictions, state_out, tmp_hidden, _ = decoder(dec_input, features, state_out, hidden)
+                ids.append([tf.random.categorical(predictions, 1)[0][0].numpy(), max(tf.nn.softmax(predictions).numpy().tolist()[0]), tmp_hidden, state_out])  # predicted_id
+
+                
+            md = mode([id[0] for id in ids])
+            tmp = []
+            for el in ids:
+                if el[0] == md:
+                    tmp.append(el)
+            best = max(el[1] for el in ids)
+            # hidden = random.choice([h[2] for h in tmp])
+            for el in tmp:
+                if el[1] == best:
+                    hidden = el[2]
+                    state_out = el[3]
+                    break
+
+
+            result.append(self.tokenizer.index_word[md])
+
+            if self.tokenizer.index_word[md] == '<end>':
+                return result, None
+
+            dec_input = tf.expand_dims([md], 0)
+            #tf.print(hidden)
+
+        return result, None
+
+    
 
     def categorical_evaluate(self, image, decoder, encoder):
         global checkpoint_path
-        attention_plot = np.zeros((self.max_length, 210))
+        attention_plot = np.zeros((self.max_length, 148))
 
-        hidden = decoder.reset_state(batch_size=1)
+        hidden = decoder.get_initial_state(batch_size=1, dtype="float32")
+        state_out = hidden[0] 
 
         temp_input = tf.expand_dims(Training.load_image(image)[0], 0)
         # img_tensor_val = image_features_extract_model(temp_input)
@@ -947,9 +1242,12 @@ class Prediction:
 
         for i in range(self.max_length):
             
-            predictions, hidden, attention_weights = decoder(dec_input,
+            predictions, state_out, hidden, attention_weights = decoder(dec_input,
                                                              features,
-                                                             hidden)
+                                                             state_out, hidden)
+
+            [print(f"{val} - {sorted(attention_weights[0].numpy().tolist(), reverse=True).index(val)}") for val in attention_weights[0].numpy().tolist()]
+            print("---------------------")
 
             attention_plot[i] = tf.reshape(attention_weights, (-1,)).numpy()
 
@@ -957,14 +1255,17 @@ class Prediction:
             result.append(self.tokenizer.index_word[predicted_id])
 
             if self.tokenizer.index_word[predicted_id] == '<end>':
+                Training.plot_attention(image, result, attention_plot)
                 return result, attention_plot
 
             dec_input = tf.expand_dims([predicted_id], 0)
+            #tf.print(hidden)
 
         attention_plot = attention_plot[:len(result), :]
-        return result, attention_plot
+        
+        return result, None
 
-    def predict(self, image_path: str):
+    def predict(self, decoder_type, image_path: str):
         global tokenizer_path, tokenizer_params_path, checkpoint_path
         try:
             with open(tokenizer_path, "r") as f:
@@ -983,7 +1284,7 @@ class Prediction:
         optimizer = tf.keras.optimizers.Adam()
 
         ckpt = tf.train.Checkpoint(encoder=encoder,
-                                   decoder=decoder,
+                                   decoder=decoder, 
                                    optimizer=optimizer)
         ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path, max_to_keep=5)
         if ckpt_manager.latest_checkpoint:
@@ -993,7 +1294,16 @@ class Prediction:
         else:
             print("Restored from scratch")
 
-        result, attention_plot = self.beam_evaluate(image_path, decoder, encoder, beam_width=3)
+        if decoder_type == "categorical":
+            result, attention_plot = self.categorical_evaluate(image_path, decoder, encoder)
+        elif decoder_type == "beam":
+            result, attention_plot = self.beam_evaluate(image_path, decoder, encoder, beam_width=2)
+        elif decoder_type == "beam2":
+            result, attention_plot = self.beam_evaluate_2(image_path, decoder, encoder, beam_width=5)
+        else:
+            raise IOError("decoder error")
+
+        
         return result
         #print('Prediction Caption:', ' '.join(result))
         #Training.plot_attention(image_path, result, attention_plot)
@@ -1102,30 +1412,34 @@ class VAN:
 
             train.auto_train()
 
-    def predict(self, image_path: str):
+    def predict(self, decoder, image_path: str):
         if not self.loaded:
             raise ValueError("Model is not loaded!")
         pred = Prediction()
-        [print(res + "\n") for res in pred.predict(image_path)]
+        res = pred.predict(decoder, image_path)
+        if decoder == "categorical" or decoder == "beam2" or decoder == "beam3":
+            print(' '.join(res))
+        if decoder == "beam":
+            [print(r + "\n") for r in res]
 
 
-    def random_predict(self, dataset_path, caption_path, number=5):
+    def random_predict(self, dataset_path, caption_path, number=9):
         if not self.loaded:
             raise ValueError("Model is not loaded!")
         with open(caption_path, 'r+') as file:
             capt = json.load(file)["annotations"]
 
-        parameters = {'axes.labelsize': 6,
-          'axes.titlesize': 6}
+        parameters = {'axes.labelsize': 10,
+          'axes.titlesize': 10}
         plt.rcParams.update(parameters)
 
         pred = Prediction()
         images = random.choices(capt, k=number)
         plotting = []
         for im in images:
-            plotting.append([im["caption"], pred.predict(dataset_path + im["image_id"] + ".png"), plt.imread(dataset_path + im["image_id"] + ".png")])  # real ; pred ; plt image
+            plotting.append([im["caption"], pred.predict("beam", dataset_path + im["image_id"] + ".png"), plt.imread(dataset_path + im["image_id"] + ".png")])  # real ; pred ; plt image
 
-        fig, axes = plt.subplots(nrows=3, ncols=3)
+        fig, axes = plt.subplots(nrows=5, ncols=1)
 
         for ax, plot in zip(axes.flat, plotting):
             ax.imshow(plot[2])
@@ -1144,10 +1458,10 @@ class VAN:
 # tf.data.experimental.enable_debug_mode()
 
 enable_gpu(False, gb=9)
-van = VAN("model_latex_x11")
- 
-#van.train()
+van = VAN("model_latex_x14")
+
+van.train()
 
 # van.random_predict("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\", 
 #                     "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json", 5)
-van.predict("C:/Users/shace/Desktop/eval/CodeCogsEqn (37).png")
+van.predict("categorical", "C:/Users/shace/Desktop/eval/dopfeq.png")
