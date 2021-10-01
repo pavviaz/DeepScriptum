@@ -64,7 +64,7 @@ def gpu(turn, gb: int):  # enable of disable GPU backend
         except:
             # Invalid device or cannot modify virtual devices once initialized.
             pass
-
+gpu(False, 4)
 # https://colab.research.google.com/github/lmoroney/mlday-tokyo/blob/master/Lab1-Hello-ML-World.ipynb
 # model = tf.keras.Sequential([keras.layers.Dense(units=1, input_shape=[1])])
 # model.compile(optimizer='sgd', loss='mean_squared_error')
@@ -402,11 +402,10 @@ def InceptionV3_convolutional_model():
 
 
 
-
-model = ImageClassificationModel.build(1200, 140, 300)
+print(tf.nn.softmax(np.array([50.23874, 49.774884, 48.1268736]) / 0.5).numpy())
 
 #InceptionV3_convolutional_model()
-#gpu(True, 4)
+
 #functional_cnn_model()
 
 

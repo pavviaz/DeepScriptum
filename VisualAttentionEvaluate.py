@@ -5,7 +5,6 @@ from statistics import mode
 import os
 import random
 import sys
-from numpy.core.defchararray import index
 import tensorflow as tf
 import numpy as np
 import time
@@ -13,12 +12,12 @@ import re
 import shutil
 import logging
 import inspect
+import nltk
 from PIL import Image
 from matplotlib import pyplot as plt
 from tensorflow import keras
 from tensorflow.python.keras.layers.recurrent import RNN
 import six
-from tensorflow.python.profiler.trace import Trace
 from tqdm import tqdm
 from keras_preprocessing.text import tokenizer_from_json
 from tensorflow.keras.layers import Dense
@@ -26,7 +25,6 @@ from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import AveragePooling2D
 from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.layers import Dropout
-from tensorflow.keras.layers import TimeDistributed
 from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import AvgPool2D
@@ -35,14 +33,6 @@ RESIZED_IMG_H = 140
 RESIZED_IMG_W = 1200
 DATA_SPLIT = 1
 global DATASET_PATH, ANNOTATION_FILE, tokenizer_path, tokenizer_params_path, checkpoint_path, meta_path
-
-
-def InceptionV3_convolutional_model():
-    image_model = tf.keras.applications.VGG16(include_top=False, weights=None)
-    # image_model.trainable = False
-    new_input = image_model.input
-    hidden_layer = image_model.layers[-1].output
-    return tf.keras.Model(new_input, hidden_layer)
 
 
 def log_init(path, name):
@@ -99,13 +89,13 @@ class BahdanauAttention(tf.keras.Model):
         self.V = tf.keras.layers.Dense(1)
 
     def call(self, features, hidden):
-        # features(CNN_encoder output) shape == (batch_size, 64, embedding_dim)
+        # features(CNN_encoder output) shape == (batch_size, H*W, embedding_dim)
 
         # hidden shape == (batch_size, hidden_size)
         # hidden_with_time_axis shape == (batch_size, 1, hidden_size)
         hidden_with_time_axis = tf.expand_dims(hidden, 1)
 
-        # attention_hidden_layer shape == (batch_size, 64, units)
+        # attention_hidden_layer shape == (batch_size, H*W, units)
         attention_hidden_layer = (tf.nn.tanh(self.W1(features) +
                                              self.W2(hidden_with_time_axis)))
 
@@ -113,7 +103,7 @@ class BahdanauAttention(tf.keras.Model):
         # This gives you an unnormalized score for each image feature.
         score = self.V(attention_hidden_layer)
 
-        # attention_weights shape == (batch_size, 64, 1)
+        # attention_weights shape == (batch_size, H*W, 1)
         attention_weights = tf.nn.softmax(score, axis=1)
 
         # context_vector shape after sum == (batch_size, hidden_size)
@@ -124,257 +114,38 @@ class BahdanauAttention(tf.keras.Model):
 
 
 class CNN_Encoder(tf.keras.Model):
-    m = None
-
-    def __init__(self, embedding_dim, m=1):
+    def __init__(self, embedding_dim):
         super(CNN_Encoder, self).__init__()
 
-        self.gru = keras.layers.GRU(50,
-                                       return_sequences=True,
-                                       return_state=True,
-                                       recurrent_initializer='glorot_uniform')
         self.rescale = tf.keras.layers.experimental.preprocessing.Rescaling(scale=1./127.5, offset=-1)
-        self.flatten = tf.keras.layers.Flatten()
-        self.embedding = tf.keras.layers.Embedding(1000, embedding_dim)
 
-        self.m == m
-        if m == 1:  # Epoch 41 Loss 0.332003
-            self.conv1 = Conv2D(filters=16, kernel_size=(3, 3))
-            self.pool1 = MaxPooling2D()
-            self.conv2 = Conv2D(filters=32, kernel_size=(3, 3))
-            self.pool2 = MaxPooling2D()
-            self.conv3 = Conv2D(filters=64, kernel_size=(3, 3))
-            self.pool3 = MaxPooling2D()
-            self.conv4 = Conv2D(filters=128, kernel_size=(3, 3))
-            self.pool4 = MaxPooling2D()
-            self.conv5 = Conv2D(filters=256, kernel_size=(3, 3))
-            self.pool5 = MaxPooling2D(pool_size=(1, 2))
+        self.conv1_block1 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
+        self.pool_block1 = MaxPooling2D(pool_size=(2, 2))
 
+        self.conv1_block2 = Conv2D(filters=128, kernel_size=(3, 3), padding='same', activation='relu')
+        self.pool_block2 = MaxPooling2D(pool_size=(4, 4))
 
-        elif m == 2:  # Результат чуть хуже, чем у 1 и 3
-            self.conv1 = Conv2D(filters=16, kernel_size=(3, 3))
-            self.pool1 = AveragePooling2D()
-            self.conv2 = Conv2D(filters=32, kernel_size=(3, 3))
-            self.pool2 = AveragePooling2D()
-            self.conv3 = Conv2D(filters=64, kernel_size=(3, 3))
-            self.pool3 = AveragePooling2D()
-            self.conv4 = Conv2D(filters=128, kernel_size=(3, 3))
-            self.pool4 = AveragePooling2D()
-            self.conv5 = Conv2D(filters=256, kernel_size=(3, 3))
-            self.pool5 = AveragePooling2D(pool_size=(1, 2))
+        self.conv1_block3 = Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu')
+        self.conv2_block3 = Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu')
+        self.pool_block3 = MaxPooling2D(pool_size=(2, 2))
 
-
-        elif m == 3:  # Epoch 92 Loss 0.256778
-            self.conv1 = Conv2D(filters=16, kernel_size=(3, 3))
-            self.pool1 = MaxPooling2D()
-            self.conv2 = Conv2D(filters=32, kernel_size=(4, 4))
-            self.pool2 = MaxPooling2D(pool_size=(1, 2))
-            self.conv3 = Conv2D(filters=64, kernel_size=(3, 3))
-            self.pool3 = MaxPooling2D()
-            self.conv4 = Conv2D(filters=128, kernel_size=(4, 4))
-            self.pool4 = MaxPooling2D(pool_size=(2, 1))
-            self.conv5 = Conv2D(filters=256, kernel_size=(3, 3))
-            self.pool5 = MaxPooling2D(pool_size=(2, 4))
-
-
-        elif m == 4:  # Epoch 60 Loss 0.179976
-            self.conv1 = Conv2D(filters=16, kernel_size=(3, 3))
-            self.pool1 = MaxPooling2D()
-            self.conv2 = Conv2D(filters=32, kernel_size=(4, 4))
-            self.pool2 = MaxPooling2D(pool_size=(1, 2))
-            self.conv3 = Conv2D(filters=64, kernel_size=(3, 3))
-            self.pool3 = MaxPooling2D()
-            self.conv4 = Conv2D(filters=128, kernel_size=(4, 4))
-            self.pool4 = MaxPooling2D(pool_size=(2, 1))
-            self.conv5 = Conv2D(filters=256, kernel_size=(3, 3))
-            self.pool5 = MaxPooling2D(pool_size=(2, 4))
-            self.conv6 = Conv2D(filters=512, kernel_size=(2, 3))
-
-
-        elif m == 5:
-            self.conv1_block1 = Conv2D(filters=16, kernel_size=(3, 3), padding='same', activation='relu')
-            self.conv2_block1 = Conv2D(filters=16, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block1 = MaxPooling2D()
-
-            self.conv1_block2 = Conv2D(filters=32, kernel_size=(3, 3), padding='same', activation='relu')
-            self.conv2_block2 = Conv2D(filters=32, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block2 = MaxPooling2D(pool_size=(1, 2))
-
-            self.conv1_block3 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
-            self.conv2_block3 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block3 = MaxPooling2D()
-
-            self.conv1_block4 = Conv2D(filters=128, kernel_size=(3, 3), padding='same', activation='relu')
-            self.conv2_block4 = Conv2D(filters=128, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block4 = MaxPooling2D(pool_size=(2, 1))
-
-            self.conv1_block5 = Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu')
-            self.conv2_block5 = Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block5 = MaxPooling2D(pool_size=(3, 5))
-
-            self.conv1_block6 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
-            self.conv2_block6 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
-
-
-        elif m == 6:
-            self.conv1 = Conv2D(filters=16, kernel_size=(3, 3))
-            self.pool1 = MaxPooling2D()
-            self.conv2 = Conv2D(filters=32, kernel_size=(4, 4))
-            self.pool2 = MaxPooling2D(pool_size=(1, 2))
-            self.conv3 = Conv2D(filters=64, kernel_size=(3, 3))
-            self.pool3 = MaxPooling2D()
-            self.conv4 = Conv2D(filters=128, kernel_size=(4, 4))
-            self.pool4 = MaxPooling2D(pool_size=(2, 1))
-            self.conv5 = Conv2D(filters=256, kernel_size=(3, 3))
-            self.pool5 = MaxPooling2D(pool_size=(2, 4))
-            self.conv6 = Conv2D(filters=512, kernel_size=(2, 3))
-
-
-        elif m == 7:
-            self.conv1_block1 = Conv2D(filters=16, kernel_size=(3, 3), padding='same', activation='relu')
-            self.conv2_block1 = Conv2D(filters=16, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block1 = MaxPooling2D(pool_size=(2, 3))
-
-            self.conv1_block2 = Conv2D(filters=32, kernel_size=(3, 3), padding='same', activation='relu')
-            self.conv2_block2 = Conv2D(filters=32, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block2 = MaxPooling2D(pool_size=(2, 3))
-
-            self.conv1_block3 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
-            self.conv2_block3 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block3 = MaxPooling2D()
-
-            self.conv1_block4 = Conv2D(filters=128, kernel_size=(3, 3), padding='same', activation='relu')
-            self.conv2_block4 = Conv2D(filters=128, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block4 = MaxPooling2D(pool_size=(1, 2))
-
-            self.conv1_block5 = Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu')
-            self.conv2_block5 = Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block5 = MaxPooling2D(pool_size=(2, 3))
-
-            self.conv1_block6 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
-            self.conv2_block6 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
-
-
-        elif m == 8:
-            self.conv1_block1 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
-            # self.conv2_block1 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block1 = MaxPooling2D(pool_size=(2, 3))
-
-            self.conv1_block2 = Conv2D(filters=128, kernel_size=(3, 3), padding='same', activation='relu')
-            # self.conv2_block2 = Conv2D(filters=128, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block2 = MaxPooling2D(pool_size=(2, 3))
-
-            self.conv1_block3 = Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu')
-            self.conv2_block3 = Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block3 = MaxPooling2D(pool_size=(1, 2))
-
-            self.conv1_block4 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block4 = MaxPooling2D(pool_size=(2, 3))
-            self.conv2_block4 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
-
-            # self.conv1_block5 = Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu')
-            # self.conv2_block5 = Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu')
-            # self.pool_block5 = MaxPooling2D(pool_size=(2, 3))
-
-            # self.conv1_block6 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
-            # self.conv2_block6 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
+        self.conv1_block4 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
+        self.pool_block4 = MaxPooling2D(pool_size=(2, 2))
+        self.conv2_block4 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
         
-
-        elif m == 9:
-            self.conv1_block1 = Conv2D(filters=64, kernel_size=(5, 5), padding='valid', activation='relu')
-            # self.conv2_block1 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block1 = MaxPooling2D(pool_size=(2, 3))
-
-            self.conv1_block2 = Conv2D(filters=128, kernel_size=(5, 5), padding='valid', activation='relu')
-            # self.conv2_block2 = Conv2D(filters=128, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block2 = MaxPooling2D(pool_size=(2, 3))
-
-            self.conv1_block3 = Conv2D(filters=256, kernel_size=(5, 5), padding='valid', activation='relu')
-            self.conv2_block3 = Conv2D(filters=256, kernel_size=(5, 5), padding='same', activation='relu')
-            self.pool_block3 = MaxPooling2D(pool_size=(2, 4))
-
-            self.conv1_block4 = Conv2D(filters=512, kernel_size=(5, 5), padding='same', activation='relu')
-            self.pool_block4 = MaxPooling2D(pool_size=(1, 2))
-            self.conv2_block4 = Conv2D(filters=512, kernel_size=(5, 5), padding='same', activation='relu')
-
-
-        elif m == 10:
-            self.conv1_block1 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
-            # self.conv2_block1 = Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block1 = MaxPooling2D(pool_size=(2, 2))
-
-            self.conv1_block2 = Conv2D(filters=128, kernel_size=(3, 3), padding='same', activation='relu')
-            # self.conv2_block2 = Conv2D(filters=128, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block2 = MaxPooling2D(pool_size=(4, 4))
-
-            self.conv1_block3 = Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu')
-            self.conv2_block3 = Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block3 = MaxPooling2D(pool_size=(2, 2))
-
-            self.conv1_block4 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
-            self.pool_block4 = MaxPooling2D(pool_size=(2, 2))
-            self.conv2_block4 = Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu')
-        
-        
-        elif m == 11:
-            self.initial = Conv2D(64, (7,7), strides=2, activation='relu')
-            self.max_pooling_initial = MaxPooling2D(pool_size=(2,2))
-
-            self.batch_1_batchNorm = BatchNormalization()
-            self.batch_1_conv2d_1 = Conv2D(128, (1,1), activation='relu', padding='same')
-            self.batch_1_drop = Dropout(0.3)
-            self.batch_1_conv2d_2 = Conv2D(32, (3,3), activation='relu', padding='same')
-
-            self.batch_2 = Concatenate()
-
-            self.batch_2_batchNorm = BatchNormalization()
-            self.batch_2_conv2d_1 = Conv2D(128, (1,1), activation='relu', padding='same')
-            self.batch_2_drop = Dropout(0.4)
-            self.batch_2_conv2d_2 = Conv2D(32, (3,3), activation='relu', padding='same')
-
-            self.batch_3 = Concatenate()
-
-            self.batch_3_batchNorm = BatchNormalization()
-            self.batch_3_conv2d_1 = Conv2D(128, (1,1), activation='relu', padding='same')
-            self.batch_3_drop = Dropout(0.4)
-            self.batch_3_conv2d_2 = Conv2D(32, (3,3), activation='relu', padding='same')
-
-            self.batch_4 = Concatenate()
-
-            self.batch_4_batchNorm = BatchNormalization()
-            self.batch_4_conv2d_1 = Conv2D(128, (1,1), activation='relu', padding='same')
-            self.batch_4_drop = Dropout(0.4)
-            self.batch_4_conv2d_2 = Conv2D(32, (3,3), activation='relu', padding='same')
-
-            self.final_batch = Concatenate()
-
-            self.downsampling_batchNorm = BatchNormalization()
-            self.downsampling_conv2d_1 = Conv2D(32, (1,1), activation='relu')
-            self.downsampling_avg = AvgPool2D(pool_size=(4,4), strides=4)
-        
-
-        elif m == 12:
-            self.model = InceptionV3_convolutional_model()
-
-        self.fc_00 = Dense(embedding_dim)
-        self.fc_0 = Dense(embedding_dim)
-        self.do_0 = Dropout(0.15)
-        self.do_1 = Dropout(0.5)
         # shape after fc == (batch_size, 64, embedding_dim)
         self.fc = Dense(embedding_dim)
 
     def call(self, x):
-        # print(f"init shape = {x.shape}")
 
+        # Rescaling image to [-1 ; 1] scale
         x = self.rescale(x)
-        # print(f"rescale shape = {x.shape}")
 
+        # Perfoming convolutions
         x = self.conv1_block1(x)
-        # x = self.conv2_block1(x)
         x = self.pool_block1(x)
 
         x = self.conv1_block2(x)
-        # x = self.conv2_block2(x)
         x = self.pool_block2(x)
 
         x = self.conv1_block3(x)
@@ -384,93 +155,18 @@ class CNN_Encoder(tf.keras.Model):
         x = self.conv1_block4(x)
         x = self.pool_block4(x)
         x = self.conv2_block4(x)
-
-        # x = self.conv1_block5(x)
-        # x = self.conv2_block5(x)
-        # x = self.pool_block5(x)
-
-        # x = self.conv1_block6(x)
-        # x = self.conv2_block6(x)
-        # x = self.pool_block6(x)
-
-
-        # x = self.initial(x)
-        # x = self.max_pooling_initial(x)
-        # t_x = x
-
-        # x = self.batch_1_batchNorm(x)
-        # x = tf.nn.relu(x)
-        # x = self.batch_1_conv2d_1(x)
-        # x = self.batch_1_drop(x)
-        # x = self.batch_1_conv2d_2(x)
-
-        # x = self.batch_2([t_x, x])
-        # t_x = x
-
-        # x = self.batch_2_batchNorm(x)
-        # x = tf.nn.relu(x)
-        # x = self.batch_2_conv2d_1(x)
-        # x = self.batch_2_drop(x)
-        # x = self.batch_2_conv2d_2(x)
-
-        # x = self.batch_3([t_x, x])
-        # t_x = x
-
-        # x = self.batch_3_batchNorm(x)
-        # x = tf.nn.relu(x)
-        # x = self.batch_3_conv2d_1(x)
-        # x = self.batch_3_drop(x)
-        # x = self.batch_3_conv2d_2(x)
-
-        # x = self.batch_4([t_x, x])
-        # t_x = x
-
-        # x = self.batch_4_batchNorm(x)
-        # x = tf.nn.relu(x)
-        # x = self.batch_4_conv2d_1(x)
-        # x = self.batch_4_drop(x)
-        # x = self.batch_4_conv2d_2(x)
-
-        # x = self.final_batch([x, t_x])
-
-        # x = self.downsampling_batchNorm(x)
-        # x = tf.nn.relu(x)
-        # x = self.downsampling_conv2d_1(x)
-        # x = self.downsampling_avg(x)
-        
-
-        # fmaps = []
-        # for fmap in x:
-        #     fmaps.append(self.gru(fmap))
             
-        # x = self.outer_comp(x)
-
-        x = tf.reshape(x, (x.shape[0], -1, x.shape[3]))
-        print(f"reshape_shape = {x.shape}")
-
+        # Positional embeddings (doesn't work)
         # x = self.add_timing_signal_nd(x)
 
-        # x, _ = self.gru(x)
-        # print(f"gru = {x}")
-        # print(f"gru = {h.shape}")
-        
-        # x = self.fc_00(x)
-        # x = tf.nn.relu(x)
+        # Reshaping to [batch_size, H*W, 512] shape
+        x = tf.reshape(x, (x.shape[0], -1, x.shape[3]))
 
-        # x = self.do_0(x)
-
-        # x = self.fc_0(x)
-        # x = tf.nn.relu(x)
-
-        #x = self.do_1(x)
-
+        # Final vector of shape [batch_size, H*W, embedding_dim]
         x = self.fc(x)
         x = tf.nn.relu(x)
-        print(f"final = {x.shape}")
-        return x
 
-    def outer_comp(self, x):
-        return tf.stack(x)
+        return x
 
 
     def add_timing_signal_nd(self, x, min_timescale=5.0, max_timescale=1.0e4):
@@ -529,20 +225,6 @@ class RNN_Decoder(tf.keras.Model):
         self.units = units
 
         self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-        self.gru = tf.keras.layers.GRU(self.units,
-                                       return_sequences=True,
-                                       return_state=True,
-                                       recurrent_initializer='glorot_uniform')
-
-        self.llstm = tf.keras.layers.LSTM(self.units,
-                                       return_sequences=True,
-                                       return_state=True,
-                                       recurrent_initializer='glorot_uniform')
-
-        self.gru_cuda = tf.compat.v1.keras.layers.CuDNNGRU(units, 
-                                        return_sequences=True, 
-                                        return_state=True, 
-                                        recurrent_initializer='glorot_uniform')
 
         self.lstm = tf.keras.layers.LSTMCell(self.units,
                                              recurrent_initializer='glorot_uniform')
@@ -552,14 +234,14 @@ class RNN_Decoder(tf.keras.Model):
 
         self.attention = BahdanauAttention(self.units)
 
-        self.dropout = tf.keras.layers.Dropout(0.5)
-        self.b_n = tf.keras.layers.BatchNormalization()
+        # self.dropout = tf.keras.layers.Dropout(0.5)
+        # self.b_n = tf.keras.layers.BatchNormalization()
 
         self.get_initial_state = self.lstm.get_initial_state
         
 
     def call(self, x, features, state_output, hidden):
-        # defining attention as a separate mod`el
+        # defining attention as a separate model
         context_vector, attention_weights = self.attention(features, state_output)
 
         # x shape after passing through embedding == (batch_size, 1, embedding_dim)
@@ -568,14 +250,11 @@ class RNN_Decoder(tf.keras.Model):
         # x shape after concatenation == (batch_size, 1, embedding_dim + hidden_size)
         x = tf.concat([context_vector, tf.squeeze(x, axis=1)], axis=-1)
 
-        # passing the concatenated vector to the GRU
+        # passing the concatenated vector to the LSTM
         state_output, state = self.lstm(x, hidden)
 
         # shape == (batch_size, max_length, hidden_size)
         x = self.fc1(state_output)
-
-        # x shape == (batch_size * max_length, hidden_size)
-        # x = tf.reshape(x, (-1, x.shape[2]))
 
         # x = self.dropout(x)
         # x = self.b_n(x)
@@ -584,6 +263,7 @@ class RNN_Decoder(tf.keras.Model):
         x = self.fc2(x)
 
         return x, state_output, state, attention_weights
+
 
     def reset_state(self, batch_size):
         return tf.zeros((batch_size, self.units))
@@ -701,7 +381,6 @@ class Rnn_Global_Decoder(tf.keras.Model):
         return tf.zeros((batch_size, self.units))
 
 
-
 class Training:
     global DATASET_PATH, ANNOTATION_FILE
 
@@ -794,9 +473,9 @@ class Training:
         for _ in range(len(result)):
             plotting.append(plt.imread(image))  # real ; pred ; plt image
 
-        fig, axes = plt.subplots(nrows=2, ncols=1)
+        fig, axes = plt.subplots(nrows=len(result) -10, ncols=1)
 
-        for ax, plot, i in zip(axes.flat, plotting, range(len(result))):
+        for ax, plot, i in zip(axes.flat, plotting, range(0, len(result) -10)):
             temp_att = np.resize(attention_plot[i], (4, 37))
             img = ax.imshow(plot)
             ax.set_title(result[i])
@@ -1037,10 +716,10 @@ class Training:
         self.logger.info(f"Dataset is ready")
 
         # инициализация параметров нейросети
-        encoder = CNN_Encoder(self.embedding_dim, m=self.conv_var)
+        encoder = CNN_Encoder(self.embedding_dim)
         decoder = RNN_Decoder(self.embedding_dim, self.units, self.vocab_size)
 
-        optimizer = tf.keras.optimizers.RMSprop()
+        optimizer = tf.keras.optimizers.Adam()
         loss_object = tf.keras.losses.SparseCategoricalCrossentropy(
             from_logits=True, reduction='none')
 
@@ -1125,7 +804,7 @@ class Prediction:
         return [[prob, id] for prob, id in zip(probs, ids)]
 
 
-    def beam_evaluate(self, image, decoder, encoder, beam_width=10):
+    def beam_evaluate(self, image, decoder, encoder, beam_width=10, temperature = 1.0):
         global checkpoint_path
         attention_plots = [np.zeros((self.max_length, 148)) for _ in range(beam_width)] 
 
@@ -1135,12 +814,11 @@ class Prediction:
         temp_input = tf.expand_dims(Training.load_image(image)[0], 0)
 
         features = encoder(temp_input)
-        # hidden = hidden_enc
 
         dec_input = tf.expand_dims([self.tokenizer.word_index['<start>']], 0)
 
         predictions, state_out, hidden, _ = decoder(dec_input, features, state_out, hidden)
-        predictions = tf.nn.softmax(predictions).numpy()
+        predictions = tf.nn.softmax(predictions / temperature).numpy()
     
         init = self.find_n_best(predictions, beam_width)
         results = [[obj[0], obj[1], hidden, self.tokenizer.index_word[int(obj[1])] + " ", state_out] for obj in init]  # 0 - prob ; 1 - id ; 2 - hidden
@@ -1151,7 +829,7 @@ class Prediction:
             for r in results:
                 tmp_preds, tmp_state_out, tmp_hidden, attention_plot = decoder(tf.expand_dims([r[1]], 0), features, r[4], r[2])
                 
-                for obj in self.find_n_best(tf.nn.softmax(tmp_preds).numpy(), beam_width):
+                for obj in self.find_n_best(tf.nn.softmax(tmp_preds / temperature).numpy(), beam_width):
                     tmp_res.append([obj[0] + r[0], obj[1], tmp_hidden, r[3] + self.tokenizer.index_word[int(obj[1])] + " ", tmp_state_out, attention_plot])  # multiplied scores, curr id, hidden, prev id 
 
             results.clear()
@@ -1163,11 +841,11 @@ class Prediction:
             for res, att in zip(results, attention_plots):
                 att[i] = tf.reshape(res[5], (-1,)).numpy()
 
-            if any(self.tokenizer.index_word[int(results[i][1])] == '<end>' for i in range(len(results))):
-                break
-
-            # if all(['<end>' in r[3] for r in results]):
+            # if any(self.tokenizer.index_word[int(results[i][1])] == '<end>' for i in range(len(results))):
             #     break
+
+            if all(['<end>' in r[3] for r in results]):
+                break
 
 
         # for el in results:
@@ -1265,13 +943,29 @@ class Prediction:
         
         return result, None
 
+
+    def levenshteinDistance(s1, s2):
+        if len(s1) > len(s2):
+            s1, s2 = s2, s1
+
+        distances = range(len(s1) + 1)
+        for i2, c2 in enumerate(s2):
+            distances_ = [i2+1]
+            for i1, c1 in enumerate(s1):
+                if c1 == c2:
+                    distances_.append(distances[i1])
+                else:
+                    distances_.append(1 + min((distances[i1], distances[i1 + 1], distances_[-1])))
+            distances = distances_
+        return distances[-1]
+
     def predict(self, decoder_type, image_path: str):
         global tokenizer_path, tokenizer_params_path, checkpoint_path
         try:
             with open(tokenizer_path, "r") as f:
                 data = json.load(f)
                 self.tokenizer = tokenizer_from_json(data)
-            print("Tokenizer has been loaded")
+            # print("Tokenizer has been loaded")
             with open(tokenizer_params_path, "r") as txt:
                 for line in txt:
                     regex = re.findall(r'\w+', line)
@@ -1279,7 +973,7 @@ class Prediction:
         except:
             raise IOError("Something went wrong with initializing tokenizer")
 
-        encoder = CNN_Encoder(self.embedding_dim, m=10)
+        encoder = CNN_Encoder(self.embedding_dim)
         decoder = RNN_Decoder(self.embedding_dim, self.units, self.vocab_size)
         optimizer = tf.keras.optimizers.Adam()
 
@@ -1290,14 +984,14 @@ class Prediction:
         if ckpt_manager.latest_checkpoint:
             # restoring the latest checkpoint in checkpoint_path
             ckpt.restore(ckpt_manager.latest_checkpoint).expect_partial()
-            print("Restored from {}".format(ckpt_manager.latest_checkpoint))
+            # print("Restored from {}".format(ckpt_manager.latest_checkpoint))
         else:
             print("Restored from scratch")
 
         if decoder_type == "categorical":
             result, attention_plot = self.categorical_evaluate(image_path, decoder, encoder)
         elif decoder_type == "beam":
-            result, attention_plot = self.beam_evaluate(image_path, decoder, encoder, beam_width=2)
+            result, attention_plot = self.beam_evaluate(image_path, decoder, encoder, beam_width=2, temperature = 1.0)
         elif decoder_type == "beam2":
             result, attention_plot = self.beam_evaluate_2(image_path, decoder, encoder, beam_width=5)
         else:
@@ -1422,6 +1116,41 @@ class VAN:
         if decoder == "beam":
             [print(r + "\n") for r in res]
 
+    def calulate_edit_dist_metric(self, dataset_path, caption_path, number=5000):
+        if not self.loaded:
+            raise ValueError("Model is not loaded!")
+        with open(caption_path, 'r+') as file:
+            capt = json.load(file)["annotations"]
+        
+        mean = 0
+        pred = Prediction()
+
+        random.shuffle(capt)
+
+        for v in tqdm(capt[:number]):
+            mean += levenshteinDistance(v["caption"], pred.predict("beam", dataset_path + v["image_id"] + ".png")[0].replace('<end>', '')[:-2])
+        print(f"edit_dist = {mean / number}")
+
+    
+    def calulate_bleu_metric(self, dataset_path, caption_path, number=5000):
+        if not self.loaded:
+            raise ValueError("Model is not loaded!")
+        with open(caption_path, 'r+') as file:
+            capt = json.load(file)["annotations"]
+        
+        mean = 0
+        pred = Prediction()
+
+        random.shuffle(capt)
+
+        for x, v in tqdm(enumerate(capt[:number])):
+            #mean += levenshteinDistance(v["caption"], pred.predict("beam", dataset_path + v["image_id"] + ".png")[0].replace('<end>', '')[:-2])
+            try:
+                mean += nltk.translate.bleu_score.sentence_bleu([list(filter(lambda a: a != " ", v["caption"].split(" ")))],  list(filter(lambda a: a != " ",  pred.predict("beam", dataset_path + v["image_id"] + ".png")[0].replace('<end>', '')[:-2].split(" "))))
+            except:
+                print(f"PIZDA\nr = {v['caption']}\np = {pred.predict('beam', dataset_path + v['image_id'] + '.png')[0].replace('<end>', '')[:-2]}\nx = {x}")
+        print(f"edit_dist = {mean / number}")
+        
 
     def random_predict(self, dataset_path, caption_path, number=9):
         if not self.loaded:
@@ -1443,7 +1172,9 @@ class VAN:
 
         for ax, plot in zip(axes.flat, plotting):
             ax.imshow(plot[2])
-            ax.set(title=f"real = {plot[0]}\npred = {plot[1][0]}")
+            edit_dist = levenshteinDistance(plot[0], plot[1][0].replace('<end>', '')[:-2])      
+            bleu = nltk.translate.bleu_score.sentence_bleu([list(filter(lambda a: a != " ", plot[0].split(" ")))],  list(filter(lambda a: a != " ", plot[1][0][:plot[1][0].index("<end>")].split(" "))))
+            ax.set(title=f"real = {plot[0]}\npred = {plot[1][0][:plot[1][0].index('<end>')]}\nbleu = {bleu}")
             ax.axis('off')
         plt.show()
 
@@ -1452,16 +1183,39 @@ class VAN:
         
         
 
+def levenshteinDistance(s1, s2):
+        if len(s1) > len(s2):
+            s1, s2 = s2, s1
+
+        distances = range(len(s1) + 1)
+        for i2, c2 in enumerate(s2):
+            distances_ = [i2+1]
+            for i1, c1 in enumerate(s1):
+                if c1 == c2:
+                    distances_.append(distances[i1])
+                else:
+                    distances_.append(1 + min((distances[i1], distances[i1 + 1], distances_[-1])))
+            distances = distances_
+        return distances[-1]
+
 
 # physical_devices = tf.config.list_physical_devices('GPU')
 # tf.config.experimental.set_memory_growth(physical_devices[0], True)
 # tf.data.experimental.enable_debug_mode()
 
+
+
 enable_gpu(False, gb=9)
-van = VAN("model_latex_x14")
+van = VAN("model_latex_x12")
 
-van.train()
+# van.calulate_bleu_metric("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\", 
+#                       "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json")
 
-# van.random_predict("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\", 
-#                     "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json", 5)
-van.predict("categorical", "C:/Users/shace/Desktop/eval/dopfeq.png")
+#van.train()
+
+van.random_predict("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\", 
+                    "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json", 5)
+# van.predict("beam", "C:/Users/shace/Desktop/eval/1a0d02a326.png")
+
+
+
