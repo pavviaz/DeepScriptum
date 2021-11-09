@@ -1,167 +1,136 @@
 import os
+import re
 import threading
-from PIL import Image
 import json
+import time
 import urllib.request
+import requests
 from tqdm import tqdm
-import random
-import numpy as np
-import cv2
-
-CAPTION_PATH = "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\4_dataset_large.json"
 
 
-dct = {}
-with open(CAPTION_PATH, 'r+') as file:
-    file_data = json.load(file)
-    capt = file_data["annotations"]
-    for cap in capt:
-        dct[cap["image_id"]] = cap["caption"]
+FONT_SIZE = 120
+SIZE = "small"
 
 
-def codecogs_translate(latex: str):
+def web_translate(latex: str):
+    """Transforms LaTeX caption into web form
+
+    Args:
+           latex: caption string in LaTeX
+        Returns:
+            web form of `latex`
+    """
     res = ""
     for ch in latex:
-         if not ch.isdigit() and not ch in "!()*-.ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz~'":
+        if not ch.isdigit() and ch not in "!()*-.ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz~'":
             res += "%" + format(ord(ch), "x").upper()
-         else:
+        else:
             res += ch
     return res.replace("%9", "%09")
 
 
-files = os.listdir("C:/Users/shace/Desktop/temp/")
-def func_5(start, end):  # download latex images
+def download_images(dct, path, start, end):
+    """Downloads dataset images to `dir` folder
+
+    Args:
+           dct: dataset dictionary {name: caption}
+           path: downloading folder path
+           start: 'from' index
+           end: 'to' index
+    """
     dict_temp = dict(list(dct.items())[start:end])
-    for k,v in dict_temp.items():
-        if k + ".png" in files:
-            continue
-        res = codecogs_translate(v)
+    for k, v in tqdm(dict_temp.items()):
+        res = web_translate(v)
         try:
-            urllib.request.urlretrieve(f"https://latex.codecogs.com/png.download?%5Cdpi%7B300%7D%20%5Cbg_white%20%5Csmall%20{res}", 'C:/Users/shace/Desktop/temp/' + k + ".png")
+            urllib.request.urlretrieve(
+                f"https://latex.codecogs.com/png.download?%5Cdpi%7B{FONT_SIZE}%7D%20%5Cbg_white%20%5C{SIZE}%20{res}",
+                path + k + ".png")
+            # time.sleep(0.25)
         except:
-            with open("C:/Users/shace/Desktop/errors.txt", "a")  as f:
+            # print()
+            # print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+            # print('/'.join(check_path(path).split('/')[:-2]))
+            with open(check_path('/'.join(check_path(path).split('/')[:-2])) + "errors.txt", "a+") as f:
                 f.write(f"\nkey - {k}  val = {v}  res = {res}\n")
 
 
-def func_7(limit): # find exact symbol in math image using cv2
+def compute_threads_work(length, download_threads):
+    """Yields split data for threads
 
-    file = []
-    capt_1 = os.listdir("C:\\Users\\shace\\Desktop\\conv_latex_exp\\")
-    with open("C:\\Users\\shace\\Desktop\\123.txt", "r") as f:
-        for line in f:
-            file.append(line.replace("\n", ""))
-
-    capt_1 = [cap for cap in file if encode(cap) in os.listdir("C:\\Users\\shace\\Desktop\\conv_latex_exp\\")]
-    #capt_1 = ["("]
-    capt = []
-    for line in capt_1:
-        line = line.replace("\n", "").replace("\\", "_sl_").replace("/", "_revsl_").replace(":", "_cln_").replace("*", "_mlt_").replace("?", "_quest_").replace("<", "_less_").replace(">", "_grtr_").replace("|", "_strght_").replace(".", "_dt_").replace('"', "_dbqouts_")
-        for ch in line:
-            if ch.isupper() and ch.isalpha():
-                line = line.replace(ch, "_upper_" + ch.lower(), 1) 
-        capt.append(line)
-    
-    for cap in capt_1:
-        print("now - " + cap)
-        tr = codecogs_translate(cap)
-        try:
-            urllib.request.urlretrieve(f"https://latex.codecogs.com/png.download?%5Cdpi%7B300%7D%20%5Cbg_white%20%5Clarge%20{tr}", 'temp.png')
-        except:
-             with open("C:/Users/shace/Desktop/errors.txt", "a") as f:
-                print("error!")
-                f.write(f"\ntr - {tr}  cap - {cap}\n")
-                continue
-
-        work_list = [k for k,v in dct.items() if cap in v]
-        i = 0
-        for dir in tqdm(work_list):
-   
-            if i == limit:
-                break
-            f = [0.5, 1, 1.5, 2]
-            fx = f[random.randint(0, len(f) - 1)]
-            method = cv2.TM_CCOEFF_NORMED
-
-            # Read the images from the file
-            small_image = cv2.imread('temp.png')
-            large_image = cv2.imread(f'C:\\Users\\shace\\Desktop\\formula_images_png_3\\{dir}.png')
-
-            try:
-                result = cv2.matchTemplate(small_image, large_image, method)
-            except:
-                continue
-
-            coef = random.randint(25, 35) / 100
-            threshold = .8
-            loc = np.where(result >= threshold)
-            w, h = small_image.shape[:-1]
-            #print(f"w = {w} ; h = {h}")
-            for pt in zip(*loc[::-1]):  # Switch collumns and rows
-                #print(f"pt0 = {pt[0]} ; pt1 = {pt[1]}") 
-                #cv2.rectangle(large_image, pt, (pt[0] + h, pt[1] + w), (0, 0, 255), 2)
-                croped = large_image[pt[1] - int(h * coef):pt[1] + w + int(h*coef), pt[0] - int(w * coef):pt[0] + h + int(w * coef)]
-                #print(f"cr shape = {croped.shape}")
-                # try:
-                #     cv2.imshow('1', croped)
-                #     cv2.waitKey(0)
-                # except:
-                #     pass
-                if croped.shape[0] > 0.6 * h:
-                    try:
-                        #print("YEP - " + str(i))
-                        final = cv2.resize(croped, (0,0), fx = fx, fy= fx)
-                        cv2.imwrite("C:\\Users\\shace\\Desktop\\conv_latex_exp\\" + capt[capt_1.index(cap)] + f"\\{i}.png", final)
-                        
-                        i += 1
-                        break
-                    except:
-                        continue
-
-            
-            # # We want the minimum squared difference
-            # mn,_,mnLoc,_ = cv2.minMaxLoc(result)
-
-            # # Draw the rectangle:
-            # # Extract the coordinates of our best match
-            # MPx,MPy = mnLoc
-
-            # # Step 2: Get the size of the template. This is the same size as the match.
-            # trows,tcols = small_image.shape[:2]
-
-            #cv2.rectangle(large_image, (MPx,MPy),(MPx+tcols,MPy+trows),(0,0,255),2)
-
-            # cv2.imshow('output',large_image)
-
-            # cv2.waitKey(0)
-
-            # coef = random.randint(1, 3) / 10
-            # u_x, u_y, d_x, d_y = int(coef * 0.3 *  MPx), int(coef * MPy), int(coef * 0.3 * (MPx + tcols)), int(coef * 0.7 * (MPy + trows))
-
-            # u_x, u_y, d_x, d_y = int(0.5 *  (tcols)), int(0.1 * (trows)), int(0.5 *  (tcols)), int(0.1 * (trows))
-
-            # croped = large_image[MPy - u_y:MPy + trows + d_y, MPx - u_x:MPx + tcols + d_x]
-            
-            # try:
-            #     final = cv2.resize(croped, (0,0), fx = fx, fy= fx)
-            #     cv2.imwrite("C:\\Users\\shace\\Desktop\\conv_latex_exp\\" + capt[capt_1.index(cap)] + f"\\{i}.png", final)
-            #     i += 1
-            # except:
-            #     pass
-
-            # cv2.imshow('output',final)
-
-            # cv2.waitKey(0)
-    
-   
-# x = [threading.Thread(target=func_5, args=(0, 16673)),
-#      threading.Thread(target=func_5, args=(16673, 33346)),
-#      threading.Thread(target=func_5, args=(33346, 50019)),
-#      threading.Thread(target=func_5, args=(50019, 66692)),
-#      threading.Thread(target=func_5, args=(66692, 83365)),
-#      threading.Thread(target=func_5, args=(83365, 100040))]
-# for thread in x:
-#     thread.start()
-# for thread in x:
-#     thread.join()
+    Args:
+           length: number of captions in dataset
+           download_threads: number of downloading threads
+        Returns:
+            (from, to) tuple
+    """
+    amount = length // download_threads
+    while length > 0:
+        tmp = length
+        length = 0 if length - amount < 0 else length - amount
+        yield (length, tmp)
 
 
+def check_path(path):
+    """Checks if given str is path
+
+    Args:
+           path: path string
+        Returns:
+            path or path\\
+    """
+    return path + "\\" if path[-1] != "\\" else path
+
+
+def download_dataset(directory: str, caption_path: str, amount_prop: float = 1.0, download_threads: int = 10):
+    """Downloads dataset images into `directory` folder using caption JSON file on `caption_path`
+
+    Args:
+            directory: path string to downloading directory
+            caption_path: path string to JSON caption file
+            amount_prop: dataset length control float (final_len = amount_prop * len())
+            download_threads: number of downloading threads (6 by default, [1 <= download_threads <= 12])
+    """
+    os.makedirs(os.path.dirname(check_path(directory)), exist_ok=True)
+    dataset_dct = {}
+    try:
+        with open(caption_path, 'r+') as file:
+            file_data = json.load(file)
+            capt = file_data["annotations"]
+            for cap in capt:
+                dataset_dct[cap["image_id"]] = cap["caption"]
+    except:
+        raise IOError("Caption file reading error")
+
+    dataset_dct = dict(list(dataset_dct.items())[
+                       :int(amount_prop * len(dataset_dct))])
+    threads = [threading.Thread(target=download_images, args=(dataset_dct, directory) + arg) for arg in
+               compute_threads_work(len(dataset_dct), download_threads)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+
+# with open("C:/Users/shace/Desktop/errors.txt", "r") as f:
+#     for line in f:
+#         line = line.replace("\n", "")
+#         if line != "":
+#             key = line[line.find("key - "):line.find("val = ")].replace("key - ", "").replace(" ", "")
+#             res = line[line.find("res = "):].replace("res = ", "").replace(" ", "")
+#             try:
+#                 urllib.request.urlretrieve(
+#                 f"https://latex.codecogs.com/png.download?%5Cdpi%7B{FONT_SIZE}%7D%20%5Cbg_white%20%5C{SIZE}%20{res}",
+#                 "C:/Users/shace/Desktop/lol/" + key + ".png")
+#             #time.sleep(0.25)
+#             except:
+#             # print()
+#                 print(f"WUT??? k = {key}     ;     r == {res}")
+#             # print('/'.join(check_path(path).split('/')[:-2]))
+
+
+# f = set(os.listdir("C:/Users/shace/Desktop/lol/"))
+# s = set(os.listdir("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_300"))
+# print(s- f)
+
+
+# download_dataset("C:/Users/shace/Desktop/lol/", "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\dataset\\dataset.json")
