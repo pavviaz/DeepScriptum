@@ -1,12 +1,8 @@
-import os
 import random
 from PIL import Image
 import numpy as np
-from tqdm import tqdm
 import math
-import threading
 from PIL import ImageEnhance
-from utils.download_dataset import compute_threads_work
 
 RESIZE_W = 1500
 RESIZE_H = 175
@@ -34,14 +30,6 @@ def crop_pad_image(img, output_path):
     old_im = old_im.crop((x_min, y_min, x_max + 1, y_max + 1))
     old_im.save(output_path)
 
-    # if old_im.size[0] <= RESIZE_W and old_im.size[1] <= RESIZE_H:
-    #     background = Image.new('RGBA', (RESIZE_W, RESIZE_H), (255, 255, 255, 255))
-    #     background.paste(old_im,
-    #                      (int(RESIZE_W / 2) - int(old_im.size[0] / 2), int(RESIZE_H / 2) - int(old_im.size[1] / 2)))
-    #     background.save(output_path)
-    # else:
-    #     raise IOError("Input image is too big!")
-
 
 def make_fix_size(numpy_image, random_resize: bool):
 
@@ -63,16 +51,3 @@ def make_fix_size(numpy_image, random_resize: bool):
         # return None
         print(f"image is too big! w = {img.size[0]} ; h = {img.size[1]}")  # This can't happen
 
-
-# def preprocess_dataset(path: str, download_threads: int = 6):
-#     threads = [threading.Thread(target=make_fix_size, args=(path, True) + arg) for arg in
-#                compute_threads_work(len(os.listdir(path)), download_threads)]
-#     for t in threads:
-#         t.start()
-#     for t in threads:
-#         t.join()
-    # for i in tqdm(os.listdir(path)):
-    #     make_fix_size(path + i, True)
-
-
-# preprocess_dataset("C:/Users/shace/Desktop/lol2/")

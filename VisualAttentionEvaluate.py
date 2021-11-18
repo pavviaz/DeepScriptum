@@ -5,7 +5,6 @@ from statistics import mode
 import os
 import random
 from PIL import Image, ImageEnhance
-from six.moves import xrange
 import tensorflow as tf
 import numpy as np
 import time
@@ -15,6 +14,7 @@ import inspect
 import nltk
 import albumentations as alb
 from matplotlib import pyplot as plt
+import cv2
 import six
 from tqdm import tqdm
 from keras_preprocessing.text import tokenizer_from_json
@@ -22,7 +22,7 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.python.ops.image_ops_impl import ResizeMethod
-from utils.images_preprocessing import RESIZE_H, RESIZE_W, make_fix_size
+from utils.images_preprocessing import make_fix_size
 
 
 RESIZED_IMG_H = 175
@@ -219,7 +219,7 @@ class CNN_Encoder(tf.keras.Model):
                 (tf.cast(num_timescales, tf.float32) - 1))
         inv_timescales = min_timescale * tf.exp(
                 tf.cast(tf.range(num_timescales), tf.float32) * -log_timescale_increment)
-        for dim in xrange(num_dims):
+        for dim in range(num_dims):
             length = tf.shape(x)[dim + 1]
             position = tf.cast(tf.range(length), tf.float32)
             scaled_time = tf.expand_dims(position, 1) * tf.expand_dims(
@@ -228,9 +228,9 @@ class CNN_Encoder(tf.keras.Model):
             prepad = dim * 2 * num_timescales
             postpad = channels - (dim + 1) * 2 * num_timescales
             signal = tf.pad(signal, [[0, 0], [prepad, postpad]])
-            for _ in xrange(1 + dim):
+            for _ in range(1 + dim):
                 signal = tf.expand_dims(signal, 0)
-            for _ in xrange(num_dims - 1 - dim):
+            for _ in range(num_dims - 1 - dim):
                 signal = tf.expand_dims(signal, -2)
             x += signal
         return x
@@ -435,6 +435,10 @@ class Training:
         self.logger.info(f"DATA_SPLIT_INDEX: {DATA_SPLIT}")
         self.logger.info(
             f"-----------------------------------------------------")
+        
+        # self.sr = cv2.dnn_superres.DnnSuperResImpl_create()
+        # self.sr.readModel("C:/Users/shace/Downloads/EDSR_x2.pb")
+        # self.sr.setModel("edsr", 3)
 
     def auto_train(self):
         self.data_preprocess()
@@ -556,14 +560,15 @@ class Training:
     def map_func_alb(self, img_name, cap):
         img = tf.io.read_file(img_name.decode("utf-8"))
         img = tf.image.decode_png(img, channels=3)
-        img = tf.image.resize(img, (int(img.shape[0]*2), int(img.shape[1]*2)), ResizeMethod.BILINEAR)
-        enhancer = ImageEnhance.Sharpness(Image.fromarray(np.uint8(img.numpy())).convert('RGB'))
-        img = enhancer.enhance(3)
+        # img = self.sr.upsample(img.numpy())
+        img = tf.image.resize(img, (int(img.shape[0]*0.8), int(img.shape[1]*0.8)), ResizeMethod.GAUSSIAN)
+        # enhancer = ImageEnhance.Sharpness(Image.fromarray(np.uint8(img.numpy())).convert('RGB'))
+        # img = enhancer.enhance(3)
         # data = {"image":img.numpy()}
 
         # aug_data = transforms(**data)
         # aug_img = aug_data["image"]
-        img = make_fix_size(img, False)
+        img = make_fix_size(img.numpy(), False)
 
         
         img = tf.image.resize(img, (RESIZED_IMG_H, RESIZED_IMG_W))
@@ -592,12 +597,12 @@ class Training:
     def load_image(image_path):
         img = tf.io.read_file(image_path)
         img = tf.image.decode_png(img, channels=3)
-        img = tf.image.resize(img, (int(img.shape[0]*2), int(img.shape[1]*2)), ResizeMethod.BILINEAR)
-        enhancer = ImageEnhance.Sharpness(Image.fromarray(np.uint8(img.numpy())).convert('RGB'))
-        img = enhancer.enhance(3)
+        img = tf.image.resize(img, (int(img.shape[0]*0.8), int(img.shape[1]*0.8)), ResizeMethod.GAUSSIAN)
+        # enhancer = ImageEnhance.Sharpness(Image.fromarray(np.uint8(img.numpy())).convert('RGB'))
+        # img = enhancer.enhance(3)
         # img = tf.image.convert_image_dtype(img, dtype=tf.float32)
 
-        img = make_fix_size(img, False)
+        img = make_fix_size(img.numpy(), False)
         # img = tf.image.convert_image_dtype(img, dtype=tf.float32)
         img = tf.image.resize(img, (RESIZED_IMG_H, RESIZED_IMG_W))
 
@@ -1060,7 +1065,7 @@ class Prediction:
 
 class Image2Latex:
     loaded = False
-    d_p = "images_120\\"
+    d_p = "images_300\\"
     c_p = "5_dataset_large.json"
     top_k = 300
     image_count = 100000
@@ -1266,13 +1271,13 @@ config.gpu_options.allow_growth = True
 session = tf.compat.v1.Session(config=config)
 
 enable_gpu(False, gb=10)
-van = Image2Latex("model_latex_x20")
+van = Image2Latex("model_latex_x21")
 
 # van.calulate_bleu_metric("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\",
 #                       "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json")
 
 # van.train()
 
-# van.random_predict("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_120\\",
-#                    "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json", 5)
-van.predict("beam", "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_120\\1a9ab71a32.png")
+van.random_predict("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_300\\",
+                   "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json", 5)
+# van.predict("beam", "C:\\Users\\shace\\Desktop\\CodeCogsEqn (38).png")

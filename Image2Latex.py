@@ -5,7 +5,6 @@ import tensorflow as tf
 from PIL import ImageGrab
 from call_model import predict
 from train_model import train
-from utils.download_dataset import download_dataset
 
 MODEL_PATH = "model_in_usage\\"
 CHECKPOINTS_PATH = "checkpoints\\"
@@ -77,7 +76,7 @@ def main():
     argparser.add_argument('--train', action='store_true', help='Call interactable menu')
     argparser.add_argument('-i', '--image', type=str, default=None, help='Path to LaTeX image')
     argparser.add_argument('-b', '--bwidth', type=int, default=25, help='Beam width value')
-    argparser.add_argument('-t', '--temperature', type=float, default=0.3, help='TODO')
+    argparser.add_argument('-t', '--temperature', type=float, default=0.1, help='TODO')
     argparser.add_argument('-c', '--clipboard', action='store_true', help='Copy image from clipboard')
     argparser.add_argument('--compute-threads', type=int, default=6, help='Number of dataset downloading and preprocessing threads')
     argparser.add_argument('--use-gpu', action='store_true', help='Enable GPU for training (CUDNN installation required)')
@@ -137,7 +136,7 @@ def main():
             else:
                 raise IOError("No input image!")
 
-        predict(im_path, path + TOKENIZER_PATH, path + META_PATH, path + CHECKPOINTS_PATH, beam_width=args.bwidth, temperature=args.temperature)
+        predict(im_path, path + TOKENIZER_PATH, path + META_PATH, path + CHECKPOINTS_PATH, beam_width=int(args.bwidth) if int(args.bwidth) > 0 else 25, temperature=args.temperature if 0 < args.temperature <= 1 else 0.1)
 
 
 if __name__ == "__main__":

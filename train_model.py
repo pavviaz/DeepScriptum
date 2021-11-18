@@ -295,7 +295,6 @@ def train():
     logger.info(f"---------------MODEL AND UTILS SUMMARY---------------")
     logger.info(f"ENCODER_INIT:\n{inspect.getsource(Encoder.__init__)}")
     logger.info(f"ENCODER_CALL:\n{inspect.getsource(Encoder.call)}")
-    logger.info(f"IMG_PREPROCESSING:\n{inspect.getsource(load_image)}")
     logger.info(f"RESIZE_HEIGHT: {RESIZED_IMG_H}")
     logger.info(f"RESIZE_WIDTH: {RESIZED_IMG_W}")
     logger.info(f"DATA_SPLIT_INDEX: {DATA_SPLIT}")

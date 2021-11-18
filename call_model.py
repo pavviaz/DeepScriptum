@@ -26,12 +26,12 @@ def find_n_best(array, n):
 def load_image(image_path):
         img = tf.io.read_file(image_path)
         img = tf.image.decode_png(img, channels=3)
-        img = tf.image.resize(img, (int(img.shape[0]*2), int(img.shape[1]*2)), tf.image.ResizeMethod.BILINEAR)
+        img = tf.image.resize(img, (int(img.shape[0]*0.8), int(img.shape[1]*0.8)), tf.image.ResizeMethod.GAUSSIAN)
         
-        enhancer = PIL.ImageEnhance.Sharpness(PIL.Image.fromarray(np.uint8(img.numpy())).convert('RGB'))
-        img = enhancer.enhance(3)
+        # enhancer = PIL.ImageEnhance.Sharpness(PIL.Image.fromarray(np.uint8(img.numpy())).convert('RGB'))
+        # img = enhancer.enhance(3)
 
-        img = make_fix_size(img, False)
+        img = make_fix_size(img.numpy(), False)
 
         img = tf.image.resize(img, (RESIZED_IMG_H, RESIZED_IMG_W))
         os.remove(image_path)
@@ -126,7 +126,7 @@ def predict(image_path: str, tokenizer_path: str, meta_path: str, checkpoint_pat
     
         crop_pad_image(image_path, image_path)
 
-        result, attention_plot = beam_evaluate(image_path, decoder, encoder, max_length, tokenizer, beam_width=beam_width, temperature=temperature)
+        result, _ = beam_evaluate(image_path, decoder, encoder, max_length, tokenizer, beam_width=beam_width, temperature=temperature)
 
         try:
             result = result[:result.index("<end>")]

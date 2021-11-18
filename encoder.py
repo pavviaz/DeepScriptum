@@ -59,6 +59,7 @@ class Encoder(tf.keras.Model):
 
         return x
 
+    # taken from https://github.com/tensorflow/tensor2tensor/blob/37465a1759e278e8f073cd04cd9b4fe377d3c740/tensor2tensor/layers/common_attention.py
     def add_timing_signal_nd(self, x, min_timescale=5.0, max_timescale=1.0e4):
         """Adds a bunch of sinusoids of different frequencies to a Tensor.
         Each channel of the input Tensor is incremented by a sinusoid of a different
