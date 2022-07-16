@@ -1,9 +1,9 @@
 import math
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D
-from tensorflow.keras.layers import MaxPooling2D
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.layers.experimental.preprocessing import Rescaling
+from keras.layers import Conv2D
+from keras.layers import MaxPooling2D
+from keras.layers import Dense
+from keras.layers import Rescaling
 
 class Encoder(tf.keras.Model):
     def __init__(self, embedding_dim):
@@ -31,24 +31,45 @@ class Encoder(tf.keras.Model):
 
         # Rescaling image to [-1 ; 1] scale
         x = self.rescale(x)
+        
+        # to_img = tf.keras.preprocessing.image.array_to_img(tf.reduce_sum(tf.squeeze(x), -1, True))
+        # to_img.save("C:/Users/shace/Desktop/WUT/WUT0.png")
 
         # Perfoming convolutions
         x = self.conv1_block1(x)
         x = self.pool_block1(x)
+        
+        # to_img = tf.keras.preprocessing.image.array_to_img(tf.reduce_sum(tf.squeeze(x), -1, True))
+        # to_img.save("C:/Users/shace/Desktop/WUT/WUT1.png")
+        # for i in range(64):
+        #     to_img = tf.keras.preprocessing.image.array_to_img(tf.expand_dims(tf.squeeze(x)[:, :, i], -1))
+        #     to_img.save(f"C:/Users/shace/Desktop/WUT/WUT1_{i}.png")
 
         x = self.conv1_block2(x)
         x = self.pool_block2(x)
+        
+        # to_img = tf.keras.preprocessing.image.array_to_img(tf.reduce_sum(tf.squeeze(x), -1, True))
+        # to_img.save("C:/Users/shace/Desktop/WUT/WUT2.png")
 
         x = self.conv1_block3(x)
         x = self.conv2_block3(x)
         x = self.pool_block3(x)
+        
+        # to_img = tf.keras.preprocessing.image.array_to_img(tf.reduce_sum(tf.squeeze(x), -1, True))
+        # to_img.save("C:/Users/shace/Desktop/WUT/WUT3.png")
 
         x = self.conv1_block4(x)
         x = self.pool_block4(x)
         x = self.conv2_block4(x)
         
+        # to_img = tf.keras.preprocessing.image.array_to_img(tf.reduce_sum(tf.squeeze(x), -1, True))
+        # to_img.save("C:/Users/shace/Desktop/WUT/WUT4.png")
+        
         # Positional embeddings
         x = self.add_timing_signal_nd(x, min_timescale=10.0)
+        
+        # to_img = tf.keras.preprocessing.image.array_to_img(tf.reduce_sum(tf.squeeze(x), -1, True))
+        # to_img.save("C:/Users/shace/Desktop/WUT/WUT5.png")
 
         # Reshaping to [batch_size, H*W, 512] shape
         x = tf.reshape(x, (x.shape[0], -1, x.shape[3]))

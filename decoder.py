@@ -1,7 +1,7 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Embedding
-from tensorflow.keras.layers import LSTMCell
-from tensorflow.keras.layers import Dense
+from keras.layers import Embedding
+from keras.layers import LSTMCell
+from keras.layers import Dense
 from attention import BahdanauAttention
 
 class Decoder(tf.keras.Model):

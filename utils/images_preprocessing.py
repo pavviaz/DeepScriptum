@@ -4,10 +4,10 @@ import numpy as np
 import math
 from PIL import ImageEnhance
 
-RESIZE_W = 1500
-RESIZE_H = 175
-# RESIZE_W = 800
-# RESIZE_H = 90
+# RESIZE_W = 1500
+# RESIZE_H = 175
+# RESIZE_W = 940
+# RESIZE_H = 110
 
 
 # taken from
@@ -31,12 +31,15 @@ def crop_pad_image(img, output_path):
     old_im.save(output_path)
 
 
-def make_fix_size(numpy_image, random_resize: bool):
+def make_fix_size(numpy_image, RESIZE_W, RESIZE_H, random_resize: bool, alpha: bool = False):
 
     img = Image.fromarray(np.uint8(numpy_image)).convert('RGB')
 
     if img.size[0] <= RESIZE_W and img.size[1] <= RESIZE_H:
-        background = Image.new('RGBA', (RESIZE_W, RESIZE_H), (255, 255, 255, 255))
+        if not alpha:
+            background = Image.new('RGB', (RESIZE_W, RESIZE_H), (255, 255, 255))
+        else:
+            background = Image.new('RGBA', (RESIZE_W, RESIZE_H), (255, 255, 255, 255))
 
         if random_resize and random.randint(0, 1) == 0:
             a = 0.55 * min(math.floor(RESIZE_W / img.size[0]), math.floor(RESIZE_H / img.size[1]))

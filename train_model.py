@@ -12,8 +12,8 @@ import tensorflow as tf
 from tqdm import tqdm
 from encoder import Encoder
 from decoder import Decoder
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from keras.optimizers import adam_v2
+from keras.losses import SparseCategoricalCrossentropy
 from utils.images_preprocessing import make_fix_size
 
 MODEL_PATH = "trained_model\\"
@@ -226,7 +226,7 @@ def training(img_to_cap_vector, tokenizer,config, logger, m_path):
     encoder = Encoder(config['embedding_dim'])
     decoder = Decoder(config['embedding_dim'], config['units'], config['top_words'] + 1)
 
-    optimizer = Adam()
+    optimizer = adam_v2()
     loss_object = SparseCategoricalCrossentropy(
             from_logits=True, reduction='none')
 

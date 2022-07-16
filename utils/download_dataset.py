@@ -8,7 +8,7 @@ import requests
 from tqdm import tqdm
 
 
-FONT_SIZE = 120
+FONT_SIZE = 150
 SIZE = "small"
 
 
@@ -81,7 +81,7 @@ def check_path(path):
     return path + "\\" if path[-1] != "\\" else path
 
 
-def download_dataset(directory: str, caption_path: str, amount_prop: float = 1.0, download_threads: int = 10):
+def download_dataset(directory: str, caption_path: str, amount_prop: float = 1.0, download_threads: int = 6):
     """Downloads dataset images into `directory` folder using caption JSON file on `caption_path`
 
     Args:
@@ -128,9 +128,38 @@ def download_dataset(directory: str, caption_path: str, amount_prop: float = 1.0
 #             # print('/'.join(check_path(path).split('/')[:-2]))
 
 
+# with open("C:/Users/shace/Documents/GitHub/im2latex/5_dataset_large.json", 'r+') as file: # updating dat6aset JSON file
+#         file_data = json.load(file)
+#         capt = file_data["annotations"]
+#         dct = dict()
+#         [dct.update({el["image_id"]:el["caption"]}) for el in capt]
+
+
 # f = set(os.listdir("C:/Users/shace/Desktop/lol/"))
 # s = set(os.listdir("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_300"))
 # print(s- f)
 
+# with open("C:/Users/shace/Documents/GitHub/im2latex/dataset_tmp.json", 'r+') as file: # updating dat6aset JSON file
+#     file_data = json.load(file)
+#     upd_list = []
+#     for el in tqdm(list(s-f)):
+#         upd_list.append({"image_id": el.split(".")[0], "caption": dct[el.split(".")[0]]})
+#     print(len(upd_list))
+#     file_data["annotations"] = upd_list
+#         # convert back to json.
 
-# download_dataset("C:/Users/shace/Desktop/lol/", "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\dataset\\dataset.json")
+#     json.dump(file_data, file, indent=4)
+    
+
+# with open("C:/Users/shace/Documents/GitHub/im2latex/5_dataset_large.json", 'r+') as file: # updating dat6aset JSON file
+#         all_lst = []
+#         file_data = json.load(file)
+#         capt = file_data["annotations"]
+#         for cap in tqdm(capt):
+#             all_lst.append(cap["image_id"])
+#         for el in tqdm(list(set(all_lst))):
+#             all_lst.remove(el)
+#         print(all_lst)
+
+
+# download_dataset("C:/Users/shace/Desktop/lol2/", "C:/Users/shace/Documents/GitHub/im2latex/dataset_tmp.json")

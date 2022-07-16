@@ -92,10 +92,10 @@ def main():
     if args.train:
         print("Training mode enabled")
 
-        if args.use_gpu:
-            use_gpu(True, 9)
-        else:
-            use_gpu(False)
+        # if args.use_gpu:
+        #     use_gpu(True, 9)
+        # else:
+        #     use_gpu(False)
 
         path = check_path(os.path.abspath('.')) + DATASET_PATH
         print(f"Trying to catch dataset files at {path}...")
@@ -112,7 +112,8 @@ def main():
             return
 
         train()
-    else:
+        
+    elif args.image or args.clipboard:
         print("Prediction mode enabled")
         path = check_path(os.path.abspath('.')) + MODEL_PATH
         print(f"Trying to catch model in {path}...")
@@ -137,6 +138,8 @@ def main():
                 raise IOError("No input image!")
 
         predict(im_path, path + TOKENIZER_PATH, path + META_PATH, path + CHECKPOINTS_PATH, beam_width=int(args.bwidth) if int(args.bwidth) > 0 else 25, temperature=args.temperature if 0 < args.temperature <= 1 else 0.1)
+    else:
+        print("Enter image path with -i flag or enable clipboard mode with -c flag\nUse -h for more info")
 
 
 if __name__ == "__main__":

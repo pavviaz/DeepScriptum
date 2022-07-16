@@ -349,10 +349,17 @@ MigrationBackup/
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
 
-# 
+# Other
+.vscode/
 venv/
 trained_models/
+trained_models_rnn_pt/
+trained_models_transformers/
+trained_models_transformers_CNN_2/
+trained_models_transformers_pt/
+trained_models_transformers_ViT/
 datasets/
-dataset/images
+dataset/
 trained_model
 deprecated
+Flicker8k_Dataset

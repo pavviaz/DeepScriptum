@@ -31,10 +31,10 @@ def load_image(image_path):
         # enhancer = PIL.ImageEnhance.Sharpness(PIL.Image.fromarray(np.uint8(img.numpy())).convert('RGB'))
         # img = enhancer.enhance(3)
 
-        img = make_fix_size(img.numpy(), False)
+        img = make_fix_size(img.numpy(), RESIZED_IMG_W, RESIZED_IMG_H, random_resize=False, alpha=True)
 
         img = tf.image.resize(img, (RESIZED_IMG_H, RESIZED_IMG_W))
-        os.remove(image_path)
+        # os.remove(image_path)
         return img, image_path
 
 
