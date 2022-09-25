@@ -932,9 +932,9 @@ class Image2Latex_load:
 
 # torch.autograd.set_detect_anomaly(True)
 device = enable_gpu(False)
-van = Image2Latex_load("model_latex_pt_5", device=device)
+van = Image2Latex_load("model_latex_pt_6", device=device)
 # van.calulate_bleu_metric("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\",
 #                       "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json")
-# van.train()
+van.train()
 # van.random_predict(5)
-van.predict("C:\\Users\\shace\\Desktop\\25356.png")
+van.predict("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150\\64e0a73c64.png")

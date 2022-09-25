@@ -276,12 +276,12 @@ class TransformerEncoderBlock(keras.Model):
         self.embed_dim = embed_dim
         self.dense_dim = dense_dim
         self.num_heads = num_heads
-        # self.attention_1 = layers.MultiHeadAttention(
-        #     num_heads=num_heads, key_dim=embed_dim, dropout=0.0
-        # )
-        self.attention_1 = MultiHeadAttention(
-            num_heads=num_heads, d_model=embed_dim
+        self.attention_1 = layers.MultiHeadAttention(
+            num_heads=num_heads, key_dim=embed_dim, dropout=0.0
         )
+        # self.attention_1 = MultiHeadAttention(
+        #     num_heads=num_heads, d_model=embed_dim
+        # )
         self.layernorm_1 = layers.LayerNormalization()
         self.layernorm_2 = layers.LayerNormalization()
         self.dense_1 = layers.Dense(embed_dim, activation="relu")
@@ -295,42 +295,42 @@ class TransformerEncoderBlock(keras.Model):
         # self.dense_1_2 = layers.Dense(embed_dim, activation="relu")
         # self.dense_2_2 = layers.Dense(embed_dim, activation="relu")
         
-    # def call(self, inputs, training, mask):
-    #     # inputs = self.layernorm_1(inputs)
-    #     # inputs = self.dense_1(inputs)
-    #     padding_mask = None
-    #     if mask is not None:
-    #         padding_mask = tf.cast(mask[:, tf.newaxis, tf.newaxis, :], dtype="int32")
-    #     attention_output_1 = self.attention_1(
-    #         query=inputs,
-    #         value=inputs,
-    #         key=inputs,
-    #         attention_mask=padding_mask,
-    #         training=training,
-    #     )
-    #     out_1 = self.layernorm_1(inputs + attention_output_1)
-    #     proj_output = self.dense_1(out_1)
-    #     return self.layernorm_2(out_1 + proj_output)
-
     def call(self, inputs, training, mask):
         inputs = self.layernorm_1(inputs)
         inputs = self.dense_1(inputs)
-
-        # attention_output_1 = self.attention_1(
-        #     query=inputs,
-        #     value=inputs,
-        #     key=inputs,
-        #     attention_mask=None,
-        #     training=training,
-        # )
-        attention_output_1, _ = self.attention_1(
-            q=inputs,
-            v=inputs,
-            k=inputs,
-            mask=None,
+        padding_mask = None
+        if mask is not None:
+            padding_mask = tf.cast(mask[:, tf.newaxis, tf.newaxis, :], dtype="int32")
+        attention_output_1 = self.attention_1(
+            query=inputs,
+            value=inputs,
+            key=inputs,
+            attention_mask=padding_mask,
+            training=training,
         )
-        out_1 = self.layernorm_2(inputs + attention_output_1)
-        return out_1
+        # out_1 = self.layernorm_1(inputs + attention_output_1)
+        # proj_output = self.dense_1(out_1)
+        return self.layernorm_2(inputs + attention_output_1)
+
+    # def call(self, inputs, training, mask):
+    #     inputs = self.layernorm_1(inputs)
+    #     inputs = self.dense_1(inputs)
+
+    #     # attention_output_1 = self.attention_1(
+    #     #     query=inputs,
+    #     #     value=inputs,
+    #     #     key=inputs,
+    #     #     attention_mask=None,
+    #     #     training=training,
+    #     # )
+    #     attention_output_1, _ = self.attention_1(
+    #         q=inputs,
+    #         v=inputs,
+    #         k=inputs,
+    #         mask=None,
+    #     )
+    #     out_1 = self.layernorm_2(inputs + attention_output_1)
+    #     return out_1
     
     # def call(self, inputs, training, mask):
     #     inputs = self.layernorm_1(inputs)
@@ -396,18 +396,18 @@ class TransformerDecoderBlock(keras.Model):
         self.embed_dim = embed_dim
         self.ff_dim = ff_dim
         self.num_heads = num_heads
-        # self.attention_1 = layers.MultiHeadAttention(
-        #     num_heads=num_heads, key_dim=embed_dim, dropout=0.1
-        # )
-        # self.attention_2 = layers.MultiHeadAttention(
-        #     num_heads=num_heads, key_dim=embed_dim, dropout=0.1
-        # )
-        self.attention_1 = MultiHeadAttention(
-            num_heads=num_heads, d_model=embed_dim
+        self.attention_1 = layers.MultiHeadAttention(
+            num_heads=num_heads, key_dim=embed_dim, dropout=0.1
         )
-        self.attention_2 = MultiHeadAttention(
-            num_heads=num_heads, d_model=embed_dim
+        self.attention_2 = layers.MultiHeadAttention(
+            num_heads=num_heads, key_dim=embed_dim, dropout=0.1
         )
+        # self.attention_1 = MultiHeadAttention(
+        #     num_heads=num_heads, d_model=embed_dim
+        # )
+        # self.attention_2 = MultiHeadAttention(
+        #     num_heads=num_heads, d_model=embed_dim
+        # )
         self.ffn_layer_1 = layers.Dense(ff_dim, activation="relu")
         self.ffn_layer_2 = layers.Dense(embed_dim)
 
@@ -440,46 +440,46 @@ class TransformerDecoderBlock(keras.Model):
 
     def call(self, inputs, encoder_outputs, training, mask, b_s_t):
         
-        padding_mask, causal_mask = self.create_padding_mask(inputs), self.create_look_ahead_mask(inputs.shape[1])
+        # padding_mask, causal_mask = self.create_padding_mask(inputs), self.create_look_ahead_mask(inputs.shape[1])
         
         inputs = self.embedding(inputs)
         
         
-        # causal_mask, causal_mask_2 = self.get_causal_attention_mask(inputs), self.create_look_ahead_mask(inputs.shape[1])
+        causal_mask, causal_mask_2 = self.get_causal_attention_mask(inputs), self.create_look_ahead_mask(inputs.shape[1])
 
-        # if mask is not None:
-        #     padding_mask = tf.cast(mask[:, :, tf.newaxis], dtype=tf.int32)
-        #     combined_mask = tf.cast(mask[:, tf.newaxis, :], dtype=tf.int32)
-        #     combined_mask = tf.minimum(combined_mask, causal_mask)
+        if mask is not None:
+            padding_mask = tf.cast(mask[:, :, tf.newaxis], dtype=tf.int32)
+            combined_mask = tf.cast(mask[:, tf.newaxis, :], dtype=tf.int32)
+            combined_mask = tf.minimum(combined_mask, causal_mask)
 
-        # attention_output_1 = self.attention_1(
-        #     query=inputs,
-        #     value=inputs,
-        #     key=inputs,
-        #     attention_mask=combined_mask,
-        #     training=training,
-        # )
-        attention_output_1, _ = self.attention_1(
-            q=inputs,
-            v=inputs,
-            k=inputs,
-            mask=causal_mask,
+        attention_output_1 = self.attention_1(
+            query=inputs,
+            value=inputs,
+            key=inputs,
+            attention_mask=combined_mask,
+            training=training,
         )
+        # attention_output_1, _ = self.attention_1(
+        #     q=inputs,
+        #     v=inputs,
+        #     k=inputs,
+        #     mask=causal_mask,
+        # )
         out_1 = self.layernorm_1(inputs + attention_output_1)
 
-        # attention_output_2 = self.attention_2(
-        #     query=out_1,
-        #     value=encoder_outputs,
-        #     key=encoder_outputs,
-        #     attention_mask=padding_mask,
-        #     training=training,
-        # )
-        attention_output_2, _ = self.attention_2(
-            q=out_1,
-            v=encoder_outputs,
-            k=encoder_outputs,
-            mask=padding_mask,
+        attention_output_2 = self.attention_2(
+            query=out_1,
+            value=encoder_outputs,
+            key=encoder_outputs,
+            attention_mask=padding_mask,
+            training=training,
         )
+        # attention_output_2, _ = self.attention_2(
+        #     q=out_1,
+        #     v=encoder_outputs,
+        #     k=encoder_outputs,
+        #     mask=padding_mask,
+        # )
         out_2 = self.layernorm_2(out_1 + attention_output_2)
 
         ffn_out = self.ffn_layer_1(out_2)
@@ -1302,7 +1302,7 @@ class Image2Latex_load:
         
 enable_gpu(False, 10)
 
-model = Image2Latex_load("T_model_X_3")
-model.train()
+model = Image2Latex_load("T_model_5")
+# model.train()
 # model.random_predict(5)
-# print(*model.predict("C:\\Users\\shace\\Desktop\\CodeCogsEqn (52).png"), sep="\n")
+print(*model.predict("C:\\Users\\shace\\Desktop\\577f4479a6.png"), sep="\n")

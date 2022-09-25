@@ -143,7 +143,7 @@ class CNN_Encoder(tf.keras.Model):
     def __init__(self, embedding_dim):
         super(CNN_Encoder, self).__init__()
 
-        self.rescale = tf.keras.layers.experimental.preprocessing.Rescaling(scale=1. / 255.0)
+        self.rescale = tf.keras.layers.experimental.preprocessing.Rescaling(scale=1. / 127.5, offset=-1)
         # self.resnet_50 = tf.keras.applications.resnet50.ResNet50(include_top=False, weights=None, input_shape=(RESIZED_IMG_H, RESIZED_IMG_W, 3))
         # self.cnn = tf.keras.Model(self.resnet_50.input, self.resnet_50.layers[-1].output)
 
@@ -366,17 +366,17 @@ class RNN_Decoder(tf.keras.Model):
         x = self.embedding(x) # 24, 1  [[12], [12], [12], ...] --> [[[0.42432432, 0.432243]], []]
 
         # x shape after concatenation == (batch_size, 1, embedding_dim + hidden_size)
-        # x = tf.expand_dims(tf.concat([context_vector, tf.squeeze(x, axis=1)], axis=-1), 1) 
-        x = tf.concat([context_vector, tf.squeeze(x, axis=1)], axis=-1)
+        x = tf.expand_dims(tf.concat([context_vector, tf.squeeze(x, axis=1)], axis=-1), 1) 
+        # x = tf.concat([context_vector, tf.squeeze(x, axis=1)], axis=-1)
 
-        # out, hidden_state, cell_state = self.lstm_2(x, initial_state=hidden)
+        out, hidden_state, cell_state = self.lstm_2(x, initial_state=hidden)
         
         # passing the concatenated vector to the LSTM
-        hidden_state, cell_state = self.lstm(x, hidden)
+        # hidden_state, cell_state = self.lstm(x, hidden)
 
         # shape == (batch_size, max_length, hidden_size)
-        # x = self.fc1(tf.squeeze(out, axis=1))
-        x = self.fc1(hidden_state)
+        x = self.fc1(tf.squeeze(out, axis=1))
+        # x = self.fc1(hidden_state)
 
         # x = self.dropout(x)
         # x = self.b_n(x)
@@ -384,8 +384,8 @@ class RNN_Decoder(tf.keras.Model):
         # output shape == (batch_size * max_length, vocab)
         x = self.fc2(x)
 
-        # return x, hidden_state, [hidden_state, cell_state], attention_weights
-        return x, hidden_state, cell_state, attention_weights
+        return x, hidden_state, [hidden_state, cell_state], attention_weights
+        # return x, hidden_state, cell_state, attention_weights
 
     def reset_state(self, batch_size):
         return tf.zeros((batch_size, self.units))
@@ -1079,7 +1079,7 @@ class Prediction:
 
     def categorical_evaluate(self, image, decoder, encoder):
         global checkpoint_path
-        attention_plot = np.zeros((self.max_length, 148))
+        # attention_plot = np.zeros((self.max_length, 148))
 
         hidden = decoder.get_initial_state(batch_size=1, dtype="float32")
         state_out = hidden[0]
@@ -1102,23 +1102,23 @@ class Prediction:
                                                                         features,
                                                                         state_out, hidden)
 
-            [print(f"{val} - {sorted(attention_weights[0].numpy().tolist(), reverse=True).index(val)}") for val in
-             attention_weights[0].numpy().tolist()]
-            print("---------------------")
+            # [print(f"{val} - {sorted(attention_weights[0].numpy().tolist(), reverse=True).index(val)}") for val in
+            #  attention_weights[0].numpy().tolist()]
+            # print("---------------------")
 
-            attention_plot[i] = tf.reshape(attention_weights, (-1,)).numpy()
+            # attention_plot[i] = tf.reshape(attention_weights, (-1,)).numpy()
 
             predicted_id = tf.random.categorical(predictions, 1)[0][0].numpy()
             result.append(self.tokenizer.index_word[predicted_id])
 
             if self.tokenizer.index_word[predicted_id] == '<end>':
-                Training.plot_attention(image, result, attention_plot)
-                return result, attention_plot
+                # Training.plot_attention(image, result, attention_plot)
+                return result, None
 
             dec_input = tf.expand_dims([predicted_id], 0)
             # tf.print(hidden)
 
-        attention_plot = attention_plot[:len(result), :]
+        # attention_plot = attention_plot[:len(result), :]
 
         return result, None
 
@@ -1381,14 +1381,14 @@ def levenshteinDistance(s1, s2):
 # config.gpu_options.allow_growth = True
 # session = tf.compat.v1.Session(config=config)
 
-enable_gpu(False, gb=10)
-van = Image2Latex("model_latex_x24")
+enable_gpu(True, gb=10)
+van = Image2Latex("model_latex_x25")
 
 # van.calulate_bleu_metric("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\",
 #                       "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json")
 
-# van.train()
+van.train()
 
 # van.random_predict("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150\\",
 #                    "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json", 5)
-van.predict("beam", "C:\\Users\\shace\\Desktop\\1a2eabb0c3.png")
+van.predict("beam", "C:\\Users\\shace\\Desktop\\lol2\\210443.png")

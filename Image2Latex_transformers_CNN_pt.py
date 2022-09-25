@@ -18,12 +18,13 @@ import torch.nn.functional as F
 import torchvision
 from torchvision import transforms, datasets
 from torchvision.io import read_image, ImageReadMode
-from torch.utils.data import TensorDataset, DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 from keras_preprocessing.text import tokenizer_from_json
+from models.Transformer.resnet import ResBlock, ResNet34
 from utils.images_preprocessing import make_fix_size
 from einops.layers.torch import Rearrange, Reduce
-from einops import rearrange, reduce, repeat
+from einops import repeat
 
 
 def enable_gpu(enable:bool):
@@ -31,13 +32,14 @@ def enable_gpu(enable:bool):
         return "cpu"
     return "cuda" if torch.cuda.is_available() else "cpu"
 
-def log_init(path, name):
+
+def log_init(path, name, mode):
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
 
     formatter = logging.Formatter("%(asctime)s:    %(message)s")
 
-    file_handler = logging.FileHandler(f"{path}/{name}.txt", mode="w")
+    file_handler = logging.FileHandler(f"{path}/{name}.txt", mode=mode)
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
 
@@ -66,12 +68,11 @@ class Checkpointing():
         
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
         
-    
-    def __get_files_and_ckpt_idx(self):
+    def __get_files_and_ckpt_idx(self, return_all_checkpoints=False):
         dir_files = sorted([s for s in os.listdir(self.path) if os.path.isfile(os.path.join(self.path, s))], 
                            key=lambda s: os.path.getmtime(os.path.join(self.path, s)))
         try:
-            checkpoing_idx = 0 if len(dir_files) == 0 else int(dir_files[-1].replace(".tar", "").split("_")[-1]) + 1
+            checkpoing_idx = 0 if len(dir_files) == 0 else ((int(dir_files[-1].replace(".tar", "").split("_")[-1]) + 1) if not return_all_checkpoints else [int(idx.replace(".tar", "").split("_")[-1]) + 1 for idx in dir_files])
         except:
             raise IOError
         return dir_files, checkpoing_idx
@@ -89,18 +90,27 @@ class Checkpointing():
                        |
                        {k: v.state_dict() for k, v in self.optims.items()}
                        , os.path.join(self.path, f"checkpoint_{checkpoing_idx}.tar"))
-        except:
-            raise IOError
+        except Exception as e:
+            raise e
     
-    def load(self):
-        _, checkpoing_idx = self.__get_files_and_ckpt_idx()
+    def load(self, idx=None, print_avail_ckpts=False, return_idx=False):
+        _, checkpoing_idx = self.__get_files_and_ckpt_idx(return_all_checkpoints=True)
+        
+        if print_avail_ckpts:
+            print("Following checkpoints are available:")
+            [print(f"{idx + 1}) {ckpt - 1}", sep=", ", end=" ") for idx, ckpt in enumerate(checkpoing_idx)]
+        
+        checkpoing_idx = checkpoing_idx[-1] if not idx else idx + 1
         
         try:
             checkpoint = torch.load(os.path.join(self.path, f"checkpoint_{checkpoing_idx - 1}.tar"))
-            [v.load_state_dict(checkpoint[k]) for k, v in self.modules.items()]
-            [v.load_state_dict(checkpoint[k]) for k, v in self.optims.items()]
-        except:
-            raise IOError
+            [v.load_state_dict(checkpoint[k], strict=False) for k, v in self.modules.items()]
+            [v.load_state_dict(checkpoint[k], strict=False) for k, v in self.optims.items()]
+        except Exception as e:
+            raise e
+        
+        if return_idx:
+            return checkpoing_idx
 
 
 class Encoder(nn.Module):
@@ -108,29 +118,32 @@ class Encoder(nn.Module):
             super().__init__()
             
             self.device = device
-            self.conv1_block1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=(3, 3), padding='same')
+            # self.conv1_block1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=(3, 3), padding='same')
             
-            self.conv1_block2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(3, 3), padding='same')
+            # self.conv1_block2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(3, 3), padding='same')
             
-            self.conv1_block3 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(3, 3), padding='same')
-            self.conv2_block3 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=(3, 3), padding='same')
+            # self.conv1_block3 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(3, 3), padding='same')
+            # self.conv2_block3 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=(3, 3), padding='same')
             
-            self.conv1_block4 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=(3, 3), padding='same')
-            self.conv2_block4 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=(3, 3), padding='same')
+            # self.conv1_block4 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=(3, 3), padding='same')
+            # self.conv2_block4 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=(3, 3), padding='same')
+            # self.resnet = ResNet18(3, ResBlock)
+            self.resnet = ResNet34(3, ResBlock)
             
             self.fc = nn.LazyLinear(out_features=emb_dim)
 
             
         def forward(self, x):
-            x = torch.max_pool2d(input=torch.relu(self.conv1_block1(x)), kernel_size=(2, 2))
+            x = self.resnet(x)
+            # x = torch.max_pool2d(input=torch.relu(self.conv1_block1(x)), kernel_size=(2, 2))
             
-            x = torch.max_pool2d(input=torch.relu(self.conv1_block2(x)), kernel_size=(2, 2))
+            # x = torch.max_pool2d(input=torch.relu(self.conv1_block2(x)), kernel_size=(2, 2))
             
-            x = torch.relu(self.conv1_block3(x))
-            x = torch.max_pool2d(input=torch.relu(self.conv2_block3(x)), kernel_size=(2, 2))
+            # x = torch.relu(self.conv1_block3(x))
+            # x = torch.max_pool2d(input=torch.relu(self.conv2_block3(x)), kernel_size=(2, 2))
             
-            x = torch.max_pool2d(input=torch.relu(self.conv1_block4(x)), kernel_size=(2, 2))
-            x = torch.relu(self.conv2_block4(x))
+            # x = torch.max_pool2d(input=torch.relu(self.conv1_block4(x)), kernel_size=(2, 2))
+            # x = torch.relu(self.conv2_block4(x))
             
             # features_block4 = self.dropout_block4(torch.max_pool2d(input=torch.relu(self.conv1_block4(features_block3)), kernel_size=(2, 2)))
             
@@ -175,10 +188,10 @@ class Encoder(nn.Module):
                     math.log(float(max_timescale) / float(min_timescale)) /
                     (torch.Tensor([num_timescales]).type(torch.float32) - 1))
             inv_timescales = min_timescale * torch.exp(
-                    torch.Tensor(torch.range(start=0, end=num_timescales-1)).type(torch.float32) * -log_timescale_increment)
+                    torch.Tensor(range(0, num_timescales)).type(torch.float32) * -log_timescale_increment)
             for dim in range(num_dims):
                 length = x.shape[dim + 1]
-                position = torch.Tensor(torch.range(start=0, end=length - 1)).type(torch.float32) 
+                position = torch.Tensor(range(0, length)).type(torch.float32) 
                 scaled_time = torch.unsqueeze(position, 1) * torch.unsqueeze(
                         inv_timescales, 0)
                 signal = torch.cat([torch.sin(scaled_time), torch.cos(scaled_time)], axis=1)
@@ -385,21 +398,35 @@ class Seq2SeqTransformer(nn.Module):
                                 None, tgt_padding_mask, None)
         logits = self.generator(transformers_out)
         
+        # batch_size =  logits.shape[0]
+        # for i in range(batch_size):
+        #     loss += torch.mean(self.criterion(logits[:, i, :], trg_true[:, i]))
+        
+        # for pred, trgt in zip(logits, trg_true):
+        #     for pred1, trgt1 in zip(pred, trgt):
+        #         l = self.criterion(pred1, trgt1)
+        #         loss += (l)
+        
+        # for pred, trgt in zip(logits, trg_true):
+        #     loss += torch.mean(self.criterion(pred, trgt))
+            
         for pred, trgt in zip(logits, trg_true):
             loss += torch.sum(self.criterion(pred, trgt))
         
         # loss = self.criterion(logits.reshape(-1, logits.shape[-1]), trg_true.reshape(-1))
+        # return loss, loss / trg.shape[1]
+        # w = torch.sum(~(trg_true == 0))
         return loss / torch.sum(~(trg_true == 0))
         
 
-    def encode(self, src: Tensor, src_mask: Tensor):
-        return self.transformer.encoder(self.positional_encoding(
-                            self.src_tok_emb(src)), src_mask)
+    # def encode(self, src: Tensor, src_mask: Tensor):
+    #     return self.transformer.encoder(self.positional_encoding(
+    #                         self.src_tok_emb(src)), src_mask)
 
-    def decode(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor):
-        return self.transformer.decoder(self.positional_encoding(
-                          self.tgt_tok_emb(tgt)), memory,
-                          tgt_mask)
+    # def decode(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor):
+    #     return self.transformer.decoder(self.positional_encoding(
+    #                       self.tgt_tok_emb(tgt)), memory,
+    #                       tgt_mask)
     
     def generate_square_subsequent_mask(self, sz):
         mask = (torch.triu(torch.ones((sz, sz), device=self.device)) == 1).transpose(0, 1)
@@ -419,11 +446,11 @@ class Seq2SeqTransformer(nn.Module):
 
 
 class LatexDataset(Dataset):
-    def __init__(self, img_names, caps, resize_H, resize_W, transform=None, target_transform=None):
+    def __init__(self, img_names, caps, resize_H, resize_W, transform=None, random_resize=False):
         self.img_names = img_names
         self.caps = caps
         self.transform = transform
-        self.target_transform = target_transform
+        self.random_resize = random_resize
         self.resize_H = resize_H
         self.resize_W = resize_W
         assert len(self.img_names) == len(self.caps)
@@ -434,7 +461,7 @@ class LatexDataset(Dataset):
     def __getitem__(self, idx):
         image = read_image(self.img_names[idx], ImageReadMode.RGB)
         caption = self.caps[idx]
-        image = make_fix_size(image.permute(1, 2, 0).numpy(), self.resize_W, self.resize_H, False)
+        image = make_fix_size(image.permute(1, 2, 0).numpy(), self.resize_W, self.resize_H, random_resize=self.random_resize)
         if self.transform:
             image = self.transform(image)
         return image, caption
@@ -446,34 +473,45 @@ class Training:
         for item, v in zip(self.params, self.params.values()):
             print(f"k: {item} --- v: {v}")
         
-        # os.makedirs(os.path.dirname(self.params.checkpoint_path), exist_ok=True)
-        os.makedirs(os.path.dirname(self.params.meta_path), exist_ok=True)
-        with open(self.params.meta_path, "w+") as meta:
-            json.dump({"params": [kwargs]}, meta, indent=4)
-
         self.device = device
-        self.logger = log_init(self.params.model_path, "model_log")
-        self.logger.info(
-            f"Model '{self.params.model_path}' has been created with these params:")
+        
+        
+        if not self.params.train_from_ckpt:
+            os.makedirs(os.path.dirname(self.params.meta_path), exist_ok=True)
+            with open(self.params.meta_path, "w+") as meta:
+                json.dump({"params": [kwargs]}, meta, indent=4)
 
-        self.logger.info(
-            f"---------------MODEL AND UTILS SUMMARY---------------")
-        self.logger.info(
-            f"ENCODER:\n{inspect.getsource(Encoder)}")
-        # self.logger.info(
-        #     f"DECODER:\n{inspect.getsource(Decoder)}")
-        self.logger.info(
-            f"SEQ2SEQ:\n{inspect.getsource(Seq2SeqTransformer)}")
-        # self.logger.info(f"RESIZE_HEIGHT: {RESIZED_IMG_H}")
-        # self.logger.info(f"RESIZE_WIDTH: {RESIZED_IMG_W}")
-        # self.logger.info(f"DATA_SPLIT_INDEX: {DATA_SPLIT}")
-        for k, v in kwargs.items():
-            self.logger.info(f"{k}: {v}")
-        self.logger.info(
-            f"-----------------------------------------------------")
-    
+            self.logger = log_init(self.params.model_path, "model_log", "w")
+            self.logger.info(
+                f"Model '{self.params.model_path}' has been created with these params:")
+
+            self.logger.info(
+                f"---------------MODEL AND UTILS SUMMARY---------------")
+            self.logger.info(
+                f"ENCODER:\n{inspect.getsource(Encoder)}")
+            # self.logger.info(
+            #     f"DECODER:\n{inspect.getsource(Decoder)}")
+            self.logger.info(
+                f"SEQ2SEQ:\n{inspect.getsource(Seq2SeqTransformer)}")
+            # self.logger.info(f"RESIZE_HEIGHT: {RESIZED_IMG_H}")
+            # self.logger.info(f"RESIZE_WIDTH: {RESIZED_IMG_W}")
+            # self.logger.info(f"DATA_SPLIT_INDEX: {DATA_SPLIT}")
+            for k, v in kwargs.items():
+                self.logger.info(f"{k}: {v}")
+            self.logger.info(
+                f"-----------------------------------------------------")
+        
+        else:
+            self.logger = log_init(self.params.model_path, "model_log", "a+")
+            self.logger.info("Params have been loaded successfully for training from checkpoint!")
+            
+            
     def auto_train(self):
         self.data_preprocess()
+        self.train()
+    
+    def train_from_ckpt(self):
+        self.data_preprocess_from_ckpt()
         self.train()
 
     def calc_max_length(self, tensor):
@@ -489,6 +527,36 @@ class Training:
                 caption)  # словарь типа 'путь_фото': ['описание1', 'описание2', ...]
 
         return image_path_to_caption
+
+    def data_preprocess_from_ckpt(self):
+        with open(self.params.caption_path, 'r') as f:
+            annotations = json.load(f)
+
+        image_path_to_caption = self.get_image_to_caption(annotations)
+        image_paths = list(image_path_to_caption.keys())
+        random.shuffle(image_paths)
+
+        train_image_paths = image_paths[:self.params.image_count]
+        self.logger.info(
+            f"Annotations and image paths have been successfully extracted from {self.params.caption_path}\ntotal images count - {len(train_image_paths)}")
+
+        train_captions = []
+        self.img_name_vector = []
+
+        for image_path in train_image_paths:
+            caption_list = image_path_to_caption[image_path]
+            train_captions.extend(caption_list)
+            self.img_name_vector.extend([image_path] * len(caption_list))
+
+        train_seqs = self.params.tokenizer.texts_to_sequences(
+            train_captions)
+
+        cap_vector = keras.preprocessing.sequence.pad_sequences(
+            train_seqs, padding='post')
+
+        self.img_to_cap_vector = collections.defaultdict(list)
+        for img, cap in zip(self.img_name_vector, cap_vector):
+            self.img_to_cap_vector[img].append(cap)
     
     def data_preprocess(self):
         with open(self.params.caption_path, 'r') as f:
@@ -590,16 +658,17 @@ class Training:
                                      cap_train, 
                                      self.params.image_size[0], 
                                      self.params.image_size[1], 
-                                     torchvision.transforms.ToTensor())
+                                     torchvision.transforms.ToTensor(),
+                                     False)
         #  val_data = LatexDataset(img_name_val, cap_val, self.params.image_size[0], self.params.image_size[1], torchvision.transforms.ToTensor())
         
         train_dataset = DataLoader(training_data, 
                                    batch_size=self.params.batch_size, 
                                    shuffle=True, 
                                    drop_last=False, 
-                                #    pin_memory=True, 
-                                #    num_workers=12,
-                                #    persistent_workers=True
+                                   pin_memory=True, 
+                                   num_workers=12,
+                                   persistent_workers=True
                                    )
         # val_dataset = DataLoader(val_data, batch_size=self.params.batch_size, shuffle=True, drop_last=False)
         
@@ -633,26 +702,19 @@ class Training:
                 
         optimizer = torch.optim.Adam(model.parameters())
         
-        
+        self.start_ckpt_id = 0
         ckpt = Checkpointing(self.params.checkpoint_path,
                              max_to_keep=10,
                              model=model,
                              optimizer=optimizer)
-        
-        # ckpt.save()
-        # ckpt.load()
-
-        # ckpt = tf.train.Checkpoint(encoder=encoder,
-        #                            decoder=decoder,
-        #                            cnn=cnn_model)
-        # ckpt_manager = tf.train.CheckpointManager(
-        #     ckpt, self.params.checkpoint_path, max_to_keep=10)
+        if self.params.train_from_ckpt:
+            self.start_ckpt_id = ckpt.load(return_idx=True)
         
         # self.logger.info(f"OPTIMIZER SUMMARY:\n{optimizer.get_config()}")
         
         loss_plot = []
-        # TODO
-        for epoch in range(self.params.epochs):
+
+        for epoch in range(self.start_ckpt_id, self.params.epochs):
             start = time.time()
             epoch_loss = 0
 
@@ -722,7 +784,7 @@ class Image2Latex_load:
     FF_DIM = 512
     EPOCHS = 100
 
-    def __init__(self, model_name: str, working_path: str = "", device='cpu'):
+    def __init__(self, model_name: str, working_path: str = "", ckpt_idx=None, device='cpu'):
         self.model_path = os.path.abspath(
             ".") + "\\trained_models_transformers_pt\\" + working_path + model_name
         
@@ -779,7 +841,7 @@ class Image2Latex_load:
 
             ckpt = Checkpointing(self.params.checkpoint_path,
                                  model=self.model)
-            ckpt.load()
+            ckpt.load(idx=ckpt_idx)
         
     def get_model_path(self):
         return self.model_path
@@ -853,15 +915,42 @@ class Image2Latex_load:
                              nhead=self.NHEAD,
                              embedding_dim=self.EMBEDDING_DIM,
                              ff_dim=self.FF_DIM,
-                             epochs=self.EPOCHS)
+                             epochs=self.EPOCHS,
+                             train_from_ckpt=False)
 
             train.auto_train()
             
-    def predict(self, image_path: str):
+    def train_from_ckpt(self):
         if not self.loaded:
             raise ValueError("Model is not loaded!")
-        return self.greedy_decoder(image_path=image_path)
-        # return self.beam_decoder(image_path, beam_width=4, temperature=0.3)
+        train = Training(device=self.device,
+                         model_path=self.params.model_path,
+                         dataset_path=self.params.dataset_path,
+                         caption_path=self.params.caption_path,
+                         tokenizer_path=self.params.tokenizer_path,
+                         checkpoint_path=self.params.checkpoint_path,
+                         meta_path=self.params.meta_path,
+                         vocab_size=self.params.vocab_size,
+                         image_count=self.params.image_count,
+                         image_size=(self.params.image_size[0], self.params.image_size[1]),
+                         batch_size=self.params.batch_size,
+                         num_encoder_layers=self.params.num_encoder_layers,
+                         num_decoder_layers=self.params.num_decoder_layers,
+                         nhead=self.params.nhead,
+                         embedding_dim=self.params.embedding_dim,
+                         ff_dim=self.params.ff_dim,
+                         epochs=self.params.epochs,
+                         train_from_ckpt=True,
+                         max_len=self.params.max_len,
+                         tokenizer=self.tokenizer)
+
+        train.train_from_ckpt()
+            
+    def predict(self, decoder_type: str, image_path: str, beam_width=4, temperature=0.3, postprocess=True, beam_return_only_correct=True):
+        if not self.loaded:
+            raise ValueError("Model is not loaded!")
+        prediction = self.greedy_decoder(image_path=image_path) if decoder_type=="greedy" else self.beam_decoder(image_path, beam_width=beam_width, temperature=temperature, return_only_correct=beam_return_only_correct)
+        return prediction[:prediction.index(" <end>")].replace("<start> ", "") if postprocess else prediction
         
     def index(self, array, item):
         for idx, val in np.ndenumerate(array):
@@ -873,66 +962,66 @@ class Image2Latex_load:
         ids = [self.index(array, p) for p in probs]
         return [[prob, id] for prob, id in zip(probs, ids)]
     
-    def beam_decoder(self, image, beam_width=10, temperature=0.3): 
-        raise NotImplementedError
-        sample_img = self.load_image(image)
+    def beam_decoder(self, image, beam_width=10, temperature=0.3, return_only_correct=True):
+        self.model.eval()
+        with torch.no_grad():
+            img = self.load_image(image, torchvision.transforms.ToTensor()).unsqueeze(0)
+                
+            img_features = self.model.cnn_encoder(img)
 
-        # Pass the image to the CNN
-        img = tf.expand_dims(sample_img, 0)
-        img = self.cnn_model(img)
+            # Generate the caption using the Transformer decoder
+            decoded_caption = "<start> "
 
-        # Pass the image features to the Transformer encoder
-        encoded_img = self.encoder(img, training=False, mask=None)
-
-        # Generate the caption using the Transformer decoder
-        decoded_caption = "<start> "
-
-        tokenized_caption = tf.keras.preprocessing.sequence.pad_sequences(self.tokenizer.texts_to_sequences([decoded_caption]), padding="post", maxlen=self.params.max_len)[:, :-1]
-        mask = tf.math.not_equal(tokenized_caption, 0)
-        predictions = self.decoder(
-                tokenized_caption, encoded_img, training=False, mask=mask, b_s_t=None
-            )
-        predictions = tf.expand_dims((predictions[0, 0, :] / temperature), 0).numpy()
-        init = self.find_n_best(predictions, beam_width)
-        results = [[obj[0], obj[1], decoded_caption + self.tokenizer.index_word[int(obj[1])] + " "] for obj in
-                   init]  # 0 - prob ; 1 - id ; 2 - hidden
-
-        for i in range(1, self.params.max_len):
-            tmp_res = []
-
-            for r in results:
-                tmp_tokenized_caption = tf.keras.preprocessing.sequence.pad_sequences(self.tokenizer.texts_to_sequences([r[2]]), padding="post", maxlen=self.params.max_len)[:, :-1]
-                tmp_mask = tf.math.not_equal(tmp_tokenized_caption, 0)
-                tmp_preds = self.decoder(tmp_tokenized_caption, encoded_img, training=False, mask=tmp_mask, b_s_t=None)
-
-                for obj in self.find_n_best(tf.expand_dims((tmp_preds[0, i, :] / temperature), 0).numpy(), beam_width):
-                    tmp_res.append(
-                        [obj[0] + r[0], obj[1], r[2] + self.tokenizer.index_word[int(obj[1])] + " "])  # multiplied scores, curr id, hidden, prev id
-
-            results.clear()
-            tmp_res.sort(reverse=True, key=lambda x: x[0])
-            # attention_plot[i] = tf.reshape(attention_weights, (-1,)).numpy()
-            for el in range(beam_width):
-                results.append(tmp_res[el])
-
-            # for res, att in zip(results, attention_plots):
-            #     att[i] = tf.reshape(res[5], (-1,)).numpy()
-
-            # if any(self.tokenizer.index_word[int(results[i][1])] == '<end>' for i in range(len(results))):
-            #     break
-
-            if all(['<end>' in r[2] for r in results]):
-                break
+            tokenized_caption = keras.preprocessing.sequence.pad_sequences(self.tokenizer.texts_to_sequences([decoded_caption]), padding="post", maxlen=self.params.max_len)[:, :-1]
+            _, tgt_mask, _, tgt_padding_mask = self.model.create_mask(img_features, tokenized_caption, 0)
             
-            # print()
+            tgt_emb = self.model.positional_encoding(self.model.tgt_tok_emb(torch.tensor(tokenized_caption)))
+            src_emb = self.model.positional_encoding(img_features)
+            
+            transformers_out = self.model.transformer(src_emb, tgt_emb, None, tgt_mask, None,
+                                    None, torch.tensor(tgt_padding_mask), None)
+            logits = self.model.generator(transformers_out)
+            
+            predictions = (torch.softmax(logits[0, 0, :], -1) / temperature).unsqueeze(0).numpy()
+            init = self.find_n_best(predictions, beam_width)
+            results = [[obj[0], obj[1], decoded_caption + self.tokenizer.index_word[int(obj[1])] + " "] for obj in
+                    init]  # 0 - prob ; 1 - id ; 2 - hidden
 
-        # for el in results:
-        #     tf.print(el[3] + "\n")
-        # tf.print(results[0][3])
-        # return [results[0][3]], None
+            for i in range(1, self.params.max_len - 1):
+                tmp_res = []
+
+                for r in results:
+                    tmp_tokenized_caption = keras.preprocessing.sequence.pad_sequences(self.tokenizer.texts_to_sequences([r[2]]), padding="post", maxlen=self.params.max_len)[:, :-1]
+                    
+                    _, tmp_tgt_mask, _, tmp_tgt_padding_mask = self.model.create_mask(img_features, tmp_tokenized_caption, 0)
+                    tmp_tgt_emb = self.model.positional_encoding(self.model.tgt_tok_emb(torch.tensor(tmp_tokenized_caption)))
+                                        
+                    tmp_preds = torch.softmax(self.model.generator(self.model.transformer(src_emb, tmp_tgt_emb, None, tmp_tgt_mask, None,
+                                    None, torch.tensor(tmp_tgt_padding_mask), None)), -1)
+                    for obj in self.find_n_best((tmp_preds[0, i, :] / temperature).unsqueeze(0).numpy(), beam_width):
+                        tmp_res.append(
+                            [obj[0] + r[0], obj[1], r[2] + self.tokenizer.index_word[int(obj[1])] + " "])
+
+                results.clear()
+                tmp_res.sort(reverse=True, key=lambda x: x[0])
+                for el in range(beam_width):
+                    results.append(tmp_res[el])
+
+                if all(['<end>' in r[2] for r in results]):
+                    break
+        
+        results = [res[2]+" <end>" if not "<end>" in res[2] else res[2] for res in results]
+        if return_only_correct:
+            for el in results:
+                if el.count("{") == el.count("}"):
+                    return el 
+            return "<start> Correct caption was not generated <end>"
+        
+        [print(el[2]) for el in results]
         return [el[2] for el in results]
         
     def greedy_decoder(self, image_path):
+        self.model.eval()
         with torch.no_grad():
             # Read the image from the disk
             img = self.load_image(image_path, torchvision.transforms.ToTensor()).unsqueeze(0)
@@ -954,7 +1043,6 @@ class Image2Latex_load:
                                 None, torch.tensor(tgt_padding_mask), None)
                 logits = self.model.generator(transformers_out)
                 sampled_token_index = np.argmax(logits[0, i, :])
-                # sampled_token = index_lookup[sampled_token_index]
                 sampled_token = self.tokenizer.index_word[sampled_token_index.item()]
                 decoded_caption += " " + sampled_token
                 if sampled_token == "<end>":
@@ -963,8 +1051,8 @@ class Image2Latex_load:
 
             # decoded_caption = decoded_caption.replace("<start> ", "")
             # decoded_caption = decoded_caption.replace(" <end>", "").strip()
-            print("Predicted Caption: ", decoded_caption)
-            return [decoded_caption]
+            # print("Predicted Caption: ", decoded_caption)
+            return decoded_caption
 
     def load_image(self, img_name, transform):
         # raise NotImplementedError
@@ -984,25 +1072,31 @@ class Image2Latex_load:
     #     if decoder == "beam":
     #         [print(r[:r.index("<end>")] + "\n") for r in res]
 
-    def random_predict(self, number=9):
+    def random_predict(self, decoder_type, number=5):
         if not self.loaded:
             raise ValueError("Model is not loaded!")
-        with open(self.params.caption_path, 'r+') as file:
+        # with open(self.params.caption_path, 'r+') as file:
+        #     capt = json.load(file)["annotations"]
+
+        with open("5_dataset_large_val.json", 'r+') as file:
             capt = json.load(file)["annotations"]
 
         parameters = {'axes.labelsize': 10,
                       'axes.titlesize': 10,
-                      'figure.subplot.hspace': 0.999}
+                      'figure.subplot.hspace': 0.999,
+                      'figure.subplot.wspace': 0.999}
         plt.rcParams.update(parameters)
         # print(plt.rcParams.keys())
         
         images = random.choices(capt, k=number)
         plotting = []
-        for im in images:
-            plotting.append([im["caption"], self.predict(self.params.dataset_path + im["image_id"] + ".png"),
-                             plt.imread(self.params.dataset_path + im["image_id"] + ".png"), im["image_id"]])  # real ; pred ; plt image
+        for im in tqdm(images):
+            image_path = "C:\\users\\shace\\desktop\\lol2\\" + im["image_id"] + ".png"
+            plotting.append([im["caption"], self.predict(decoder_type, image_path, temperature=0.9),
+                             plt.imread(image_path), im["image_id"]])  # real ; pred ; plt image
 
-        _, axes = plt.subplots(nrows=5, ncols=1)
+        cols = number / 5
+        _, axes = plt.subplots(nrows=5, ncols=int(cols + (0 if cols.is_integer() else 1)))
 
         for ax, plot in zip(axes.flat, plotting):
             ax.imshow(plot[2])
@@ -1011,17 +1105,22 @@ class Image2Latex_load:
             # bleu = nltk.translate.bleu_score.sentence_bleu([list(filter(lambda a: a != " ", plot[0].split(" ")))], list(
             #     filter(lambda a: a != " ", plot[1][0][:plot[1][0].index("<end>")].split(" "))))
             ax.set(
-                title=f"img_name = {plot[-1]}\nreal = {plot[0]}\npred = {plot[1][0][:plot[1][0].index('<end>')]}\nbleu = {0}")
+                title=f"img_name = {plot[-1]}\nreal = {plot[0]}\npred = {plot[1]}\nbleu = {0}")
             ax.axis('off')
+            print(plot[1])
         plt.show()
      
-        
-
-# torch.autograd.set_detect_anomaly(True)
-device = enable_gpu(True)
-van = Image2Latex_load("torch_transformers_7_combined_pos_emb", device=device)
-# van.calulate_bleu_metric("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\",
-#                       "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json")
-van.train()
-# van.random_predict(5)
-# van.predict("C:\\Users\\shace\\Desktop\\25356.png")
+     
+if __name__ == "__main__":        
+    device = enable_gpu(False)
+    # van = Image2Latex_load("torch_transformers_9_combined_pos_emb_RESNET", ckpt_idx=97, device=device)
+    # van = Image2Latex_load("torch_transformers_10_combined_pos_emb_RESNET_XL_more_enc_dec", ckpt_idx=99, device=device)
+    van = Image2Latex_load("torch_transformers_11_combined_pos_emb_RESNET_XXL", ckpt_idx=99, device=device)
+    # van = Image2Latex_load("torch_transformers_13", device=device)
+    # van.calulate_bleu_metric("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\",
+    #                       "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json")
+    # van.train()
+    # van.train_from_ckpt()
+    # van.random_predict("greedy", 10)
+    print(van.predict("greedy", "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150\\30ddb74074.png", temperature=0.9))
+    # print(van.predict("greedy", "C:\\Users\\shace\\Desktop\\lol2\\180718.png", temperature=0.9))
