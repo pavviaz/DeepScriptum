@@ -1,5 +1,7 @@
 tqdm
-numpy
 matplotlib
 Pillow
-tensorflow==2.5.0
+torch
+torchvision
+munch
+
