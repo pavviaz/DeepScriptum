@@ -269,7 +269,7 @@ def main():
         with open(f"D:\\datasets\\handwritten_to_latex (limits)\\batch_{i}\\JSON\\kaggle_data_{i}.json", "r") as f:
             data = json.load(f)
             
-        
+        a = type(data)
         download_threads = 16
         threads = [multiprocessing.Process(target=preprocess_and_save, args=(data, arg[0], arg[1])) for arg in
                 compute_threads_work(len(data), download_threads)]

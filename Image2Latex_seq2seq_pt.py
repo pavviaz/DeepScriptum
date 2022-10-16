@@ -21,30 +21,9 @@ from torchvision.io import read_image, ImageReadMode
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 from keras_preprocessing.text import tokenizer_from_json
+from utils.device_def import enable_gpu
 from utils.images_preprocessing import make_fix_size
-
-
-def enable_gpu(enable:bool):
-    if not enable:
-        return "cpu"
-    return "cuda" if torch.cuda.is_available() else "cpu"
-
-def log_init(path, name):
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
-
-    formatter = logging.Formatter("%(asctime)s:    %(message)s")
-
-    file_handler = logging.FileHandler(f"{path}/{name}.txt", mode="w")
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
-
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-
-    logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
-    return logger
+from utils.logger_init import log_init
 
 
 class Checkpointing():
@@ -367,29 +346,6 @@ class Training:
         self.data_preprocess()
         self.train()
 
-
-    def map_func_alb(self, img_name, cap):
-        img = tf.io.read_file(img_name)
-        img = tf.image.decode_png(img, channels=3)
-        # img = tf.image.resize(img, (int(img.shape[0]*0.8), int(img.shape[1]*0.8)), ResizeMethod.GAUSSIAN)
-        # enhancer = ImageEnhance.Sharpness(Image.fromarray(np.uint8(img.numpy())).convert('RGB'))
-        # img = enhancer.enhance(3)
-        # data = {"image":img.numpy()}
-
-        # aug_data = transforms(**data)
-        # aug_img = aug_data["image"]
-        img = make_fix_size(img.numpy(), self.params.image_size[1], self.params.image_size[0], False)
-
-        img = tf.image.resize(img, (self.params.image_size[0], self.params.image_size[1]))
-
-        # to_img = tf.keras.preprocessing.image.array_to_img(img)
-        # to_img.show()
-        # print(tf.image.convert_image_dtype(img, dtype=tf.float32))
-        # img = tf.image.convert_image_dtype(img, dtype=tf.float32)
-        # img_tensor = np.load(img_name.decode('utf-8') + '.npy')
-        # return img.astype(np.float32), cap
-        return img.numpy(), cap
-
     def calc_max_length(self, tensor):
         return max(len(t) for t in tensor)
 
@@ -404,48 +360,10 @@ class Training:
 
         return image_path_to_caption
     
-    
     def data_preprocess(self):
         with open(self.params.caption_path, 'r') as f:
             annotations = json.load(f)
-
-        # with open("Flickr8k.token.txt") as caption_file:
-        #     caption_data = caption_file.readlines()
-        #     caption_mapping = {}
-        #     text_data = []
-        #     images_to_skip = set()
-
-        #     for line in caption_data:
-        #         line = line.rstrip("\n")
-        #         # Image name and captions are separated using a tab
-        #         img_name, caption = line.split("\t")
-
-        #         # Each image is repeated five times for the five different captions.
-        #         # Each image name has a suffix `#(caption_number)`
-        #         img_name = img_name.split("#")[0]
-        #         img_name = os.path.join("Flicker8k_Dataset", img_name.strip())
-
-        #         # We will remove caption that are either too short to too long
-        #         tokens = caption.strip().split()
-
-        #         if len(tokens) < 5 or len(tokens) > 25:
-        #             images_to_skip.add(img_name)
-        #             continue
-
-        #         if img_name.endswith("jpg") and img_name not in images_to_skip:
-        #             # We will add a start and an end token to each caption
-        #             caption = "<start> " + caption.strip() + " <end>"
-        #             text_data.append(caption)
-
-        #             if (img_name in caption_mapping) and len(caption_mapping[img_name]) < 1:
-        #                 caption_mapping[img_name].append(caption)
-        #             else:
-        #                 caption_mapping[img_name] = [caption]
-
-        #     for img_name in images_to_skip:
-        #         if img_name in caption_mapping:
-        #             del caption_mapping[img_name]
-        
+            
         # image_path_to_caption = caption_mapping
         image_path_to_caption = self.get_image_to_caption(annotations)
         image_paths = list(image_path_to_caption.keys())
@@ -932,9 +850,9 @@ class Image2Latex_load:
 
 # torch.autograd.set_detect_anomaly(True)
 device = enable_gpu(False)
-van = Image2Latex_load("model_latex_pt_6", device=device)
+van = Image2Latex_load("model_latex_pt_5", device=device)
 # van.calulate_bleu_metric("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\",
 #                       "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json")
-van.train()
+# van.train()
 # van.random_predict(5)
 van.predict("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150\\64e0a73c64.png")

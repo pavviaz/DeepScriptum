@@ -1,8 +1,6 @@
 import collections
 import inspect
 import json
-import logging
-import math
 import os
 import random
 import shutil
@@ -14,435 +12,21 @@ import numpy as np
 import torch
 from torch import Tensor
 import torch.nn as nn
-import torch.nn.functional as F
+
 import torchvision
-from torchvision import transforms, datasets
 from torchvision.io import read_image, ImageReadMode
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 from keras_preprocessing.text import tokenizer_from_json
-from models.Transformer.resnet import ResBlock, ResNet34
+
+from models.torch.cnn_encoder import Encoder
+from models.torch.seq2seqCnnTransformer import Seq2SeqTransformer
+from models.torch.seq2seqVIT import Seq2SeqTransformerVIT
+
+from utils.device_def import enable_gpu
+from utils.logger_init import log_init
 from utils.images_preprocessing import make_fix_size
-from einops.layers.torch import Rearrange, Reduce
-from einops import repeat
-
-
-def enable_gpu(enable:bool):
-    if not enable:
-        return "cpu"
-    return "cuda" if torch.cuda.is_available() else "cpu"
-
-
-def log_init(path, name, mode):
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
-
-    formatter = logging.Formatter("%(asctime)s:    %(message)s")
-
-    file_handler = logging.FileHandler(f"{path}/{name}.txt", mode=mode)
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
-
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-
-    logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
-    return logger
-
-
-class Checkpointing():
-    def __init__(self, path, max_to_keep=10, **kwargs) -> None:
-        assert all([(nn.Module in type(el).mro() or torch.optim.Optimizer in type(el).mro()) for el in kwargs.values()])
-        
-        self.max_to_keep = max_to_keep
-        self.modules = munchify({k: v for k, v in kwargs.items() if nn.Module in type(v).mro()})
-        self.optims = munchify({k: v for k, v in kwargs.items() if torch.optim.Optimizer in type(v).mro()})
-        
-        if len(self.modules) == 0:
-            print("Warning: no modules specified for saving/loading")
-        if len(self.modules) == 0:
-            print("Warning: no optimizers specified for saving/loading")
-        
-        self.path = path
-        
-        os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        
-    def __get_files_and_ckpt_idx(self, return_all_checkpoints=False):
-        dir_files = sorted([s for s in os.listdir(self.path) if os.path.isfile(os.path.join(self.path, s))], 
-                           key=lambda s: os.path.getmtime(os.path.join(self.path, s)))
-        try:
-            checkpoing_idx = 0 if len(dir_files) == 0 else ((int(dir_files[-1].replace(".tar", "").split("_")[-1]) + 1) if not return_all_checkpoints else [int(idx.replace(".tar", "").split("_")[-1]) + 1 for idx in dir_files])
-        except:
-            raise IOError
-        return dir_files, checkpoing_idx
-        
-    def save(self):
-        dir_files, checkpoing_idx = self.__get_files_and_ckpt_idx()
-        
-        del_idxs = len(dir_files) - self.max_to_keep + 1
-        
-        if del_idxs > 0:
-            [os.remove(os.path.join(self.path, dir_files[idx])) for idx in range(del_idxs)]
-            
-        try:
-            torch.save({k: v.state_dict() for k, v in self.modules.items()} 
-                       |
-                       {k: v.state_dict() for k, v in self.optims.items()}
-                       , os.path.join(self.path, f"checkpoint_{checkpoing_idx}.tar"))
-        except Exception as e:
-            raise e
-    
-    def load(self, idx=None, print_avail_ckpts=False, return_idx=False):
-        _, checkpoing_idx = self.__get_files_and_ckpt_idx(return_all_checkpoints=True)
-        
-        if print_avail_ckpts:
-            print("Following checkpoints are available:")
-            [print(f"{idx + 1}) {ckpt - 1}", sep=", ", end=" ") for idx, ckpt in enumerate(checkpoing_idx)]
-        
-        checkpoing_idx = checkpoing_idx[-1] if not idx else idx + 1
-        
-        try:
-            checkpoint = torch.load(os.path.join(self.path, f"checkpoint_{checkpoing_idx - 1}.tar"))
-            [v.load_state_dict(checkpoint[k], strict=False) for k, v in self.modules.items()]
-            [v.load_state_dict(checkpoint[k], strict=False) for k, v in self.optims.items()]
-        except Exception as e:
-            raise e
-        
-        if return_idx:
-            return checkpoing_idx
-
-
-class Encoder(nn.Module):
-        def __init__(self, emb_dim, device):
-            super().__init__()
-            
-            self.device = device
-            # self.conv1_block1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=(3, 3), padding='same')
-            
-            # self.conv1_block2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(3, 3), padding='same')
-            
-            # self.conv1_block3 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(3, 3), padding='same')
-            # self.conv2_block3 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=(3, 3), padding='same')
-            
-            # self.conv1_block4 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=(3, 3), padding='same')
-            # self.conv2_block4 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=(3, 3), padding='same')
-            # self.resnet = ResNet18(3, ResBlock)
-            self.resnet = ResNet34(3, ResBlock)
-            
-            self.fc = nn.LazyLinear(out_features=emb_dim)
-
-            
-        def forward(self, x):
-            x = self.resnet(x)
-            # x = torch.max_pool2d(input=torch.relu(self.conv1_block1(x)), kernel_size=(2, 2))
-            
-            # x = torch.max_pool2d(input=torch.relu(self.conv1_block2(x)), kernel_size=(2, 2))
-            
-            # x = torch.relu(self.conv1_block3(x))
-            # x = torch.max_pool2d(input=torch.relu(self.conv2_block3(x)), kernel_size=(2, 2))
-            
-            # x = torch.max_pool2d(input=torch.relu(self.conv1_block4(x)), kernel_size=(2, 2))
-            # x = torch.relu(self.conv2_block4(x))
-            
-            # features_block4 = self.dropout_block4(torch.max_pool2d(input=torch.relu(self.conv1_block4(features_block3)), kernel_size=(2, 2)))
-            
-            x = x.permute(0, 2, 3, 1)
-            
-            x = self.add_timing_signal_nd(x, min_timescale=10.0)
-                        
-            x = torch.reshape(x, (x.shape[0], -1, x.shape[3]))
-            
-            x = torch.relu(self.fc(x))
-            
-            return x
-        
-        def add_timing_signal_nd(self, x:Tensor, min_timescale=5.0, max_timescale=1.0e4):
-            """Adds a bunch of sinusoids of different frequencies to a Tensor.
-            Each channel of the input Tensor is incremented by a sinusoid of a different
-            frequency and phase in one of the positional dimensions.
-            This allows attention to learn to use absolute and relative positions.
-            Timing signals should be added to some precursors of both the query and the
-            memory inputs to attention.
-            The use of relative position is possible because sin(a+b) and cos(a+b) can be
-            experessed in terms of b, sin(a) and cos(a).
-            x is a Tensor with n "positional" dimensions, e.g. one dimension for a
-            sequence or two dimensions for an image
-            We use a geometric sequence of timescales starting with
-            min_timescale and ending with max_timescale.  The number of different
-            timescales is equal to channels // (n * 2). For each timescale, we
-            generate the two sinusoidal signals sin(timestep/timescale) and
-            cos(timestep/timescale).  All of these sinusoids are concatenated in
-            the channels dimension.
-            Args:
-                x: a Tensor with shape [batch, d1 ... dn, channels]
-                min_timescale: a float
-                max_timescale: a float
-            Returns:
-                a Tensor the same shape as x.
-            """
-            num_dims = 2
-            channels = x.shape[-1]
-            num_timescales = channels // (num_dims * 2)
-            log_timescale_increment = (
-                    math.log(float(max_timescale) / float(min_timescale)) /
-                    (torch.Tensor([num_timescales]).type(torch.float32) - 1))
-            inv_timescales = min_timescale * torch.exp(
-                    torch.Tensor(range(0, num_timescales)).type(torch.float32) * -log_timescale_increment)
-            for dim in range(num_dims):
-                length = x.shape[dim + 1]
-                position = torch.Tensor(range(0, length)).type(torch.float32) 
-                scaled_time = torch.unsqueeze(position, 1) * torch.unsqueeze(
-                        inv_timescales, 0)
-                signal = torch.cat([torch.sin(scaled_time), torch.cos(scaled_time)], axis=1)
-                prepad = dim * 2 * num_timescales
-                postpad = channels - (dim + 1) * 2 * num_timescales
-                signal = F.pad(signal, (prepad, postpad, 0, 0))
-                for _ in range(1 + dim):
-                    signal = torch.unsqueeze(signal, 0)
-                for _ in range(num_dims - 1 - dim):
-                    signal = torch.unsqueeze(signal, -2)
-                x = x + signal.to(self.device)
-            return x
-        
-
-class PositionalEncoding(nn.Module):
-    def __init__(self,
-                 emb_size: int,
-                 dropout: float,
-                 maxlen: int = 5000):
-        super(PositionalEncoding, self).__init__()
-        den = torch.exp(- torch.arange(0, emb_size, 2)* math.log(10000) / emb_size)
-        pos = torch.arange(0, maxlen).reshape(maxlen, 1)
-        pos_embedding = torch.zeros((maxlen, emb_size))
-        pos_embedding[:, 0::2] = torch.sin(pos * den)
-        pos_embedding[:, 1::2] = torch.cos(pos * den)
-        pos_embedding = pos_embedding.unsqueeze(-2)
-
-        self.dropout = nn.Dropout(dropout)
-        self.register_buffer('pos_embedding', pos_embedding)
-
-    def forward(self, token_embedding: Tensor):
-        return self.dropout(token_embedding + self.pos_embedding[:token_embedding.size(0), :])
-
-
-class TokenEmbedding(nn.Module):
-    def __init__(self, vocab_size: int, emb_size):
-        super(TokenEmbedding, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, emb_size)
-        self.emb_size = emb_size
-
-    def forward(self, tokens: Tensor):
-        return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
-
-
-class PatchEmbedding(nn.Module):
-        def __init__(self, img_H: int, img_W: int, patch_size: int = 16, emb_size: int = 512):
-            self.patch_size = patch_size
-            super().__init__()
-            self.projection = nn.Sequential(
-                # using a conv layer instead of a linear one -> performance gains
-                nn.LazyConv2d(emb_size, kernel_size=patch_size, stride=patch_size),
-                Rearrange('b e (h) (w) -> b (h w) e'),
-            )
-            self.cls_token = nn.Parameter(torch.randn(1,1, emb_size))
-            self.positions = nn.Parameter(torch.randn((img_H // patch_size) * (img_W // patch_size) + 1, emb_size))
-
-        def forward(self, x):
-            b, _, _, _ = x.shape
-            x = self.projection(x)
-            cls_tokens = repeat(self.cls_token, '() n e -> b n e', b=b)
-            # prepend the cls token to the input
-            x = torch.cat([cls_tokens, x], dim=1)
-            # add position embedding
-            x += self.positions
-            return x
-
-
-class ViT(nn.Module):
-        def __init__(self, img_H: int, img_W: int, nhead=8, patch_size: int = 16, emb_size: int = 512, depth=6):
-            super().__init__()
-            self.embedding = PatchEmbedding(img_H, img_W, patch_size, emb_size)
-            self.encoder = torch.nn.TransformerEncoder(nn.TransformerEncoderLayer(emb_size,
-                                                      nhead=nhead,
-                                                      activation='gelu',
-                                                      batch_first=True,
-                                                      norm_first=True), depth)
-        
-        def forward(self, x):
-            x = self.embedding(x)
-            x = self.encoder(x)
-            
-            return x
-
-
-class Seq2SeqTransformerVIT(nn.Module):
-    def __init__(self,
-                 num_encoder_layers: int,
-                 num_decoder_layers: int,
-                 emb_size: int,
-                 nhead: int,
-                 img_H: int,
-                 img_W:int,
-                 tgt_vocab_size: int,
-                 criterion,
-                 dim_feedforward: int = 512,
-                 dropout: float = 0.1,
-                 device: str = 'cpu'):
-        super(Seq2SeqTransformerVIT, self).__init__()
-        self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, emb_size)
-        self.positional_encoding = PositionalEncoding(
-            emb_size, dropout=dropout)
-        self.vit_encoder = ViT(img_H=img_H, img_W=img_W, nhead=nhead, depth=num_encoder_layers, emb_size=512)
-        self.decoder = nn.TransformerDecoder(nn.TransformerDecoderLayer(d_model=emb_size,
-                                                      nhead=nhead,
-                                                      dim_feedforward=dim_feedforward,
-                                                      dropout=dropout,
-                                                      activation='gelu',
-                                                      batch_first=True), num_decoder_layers)
-        self.generator = nn.Linear(emb_size, tgt_vocab_size)
-        self.criterion = criterion
-        self.device = device
-
-    def forward(self,
-                src: Tensor,
-                trg: Tensor):
-        
-        trg_inp = trg[:, :-1]
-        trg_true = trg[:, 1:]
-        
-        img_features = self.vit_encoder(src)
-        
-        _, tgt_mask, _, tgt_padding_mask = self.create_mask(img_features, trg_inp, 0)
-        
-        # src_emb = self.positional_encoding(self.src_tok_emb(src))
-        
-        tgt_emb = self.positional_encoding(self.tgt_tok_emb(trg_inp))
-        transformers_out = self.decoder(tgt_emb, img_features, tgt_mask, None, tgt_padding_mask, None)
-        logits = self.generator(transformers_out)
-        loss = self.criterion(logits.reshape(-1, logits.shape[-1]), trg_true.reshape(-1))
-        return loss
-        
-
-    def encode(self, src: Tensor, src_mask: Tensor):
-        return self.transformer.encoder(self.positional_encoding(
-                            self.src_tok_emb(src)), src_mask)
-
-    def decode(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor):
-        return self.transformer.decoder(self.positional_encoding(
-                          self.tgt_tok_emb(tgt)), memory,
-                          tgt_mask)
-    
-    def generate_square_subsequent_mask(self, sz):
-        mask = (torch.triu(torch.ones((sz, sz), device=self.device)) == 1).transpose(0, 1)
-        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-        return mask
-
-    def create_mask(self, src, tgt, pad_idx):
-        src_seq_len = src.shape[1]
-        tgt_seq_len = tgt.shape[1]
-
-        tgt_mask = self.generate_square_subsequent_mask(tgt_seq_len)
-        src_mask = torch.zeros((src_seq_len, src_seq_len), device=self.device).type(torch.bool)
-
-        src_padding_mask = (src == pad_idx)
-        tgt_padding_mask = (tgt == pad_idx)
-        return src_mask, tgt_mask, src_padding_mask, tgt_padding_mask
-
-
-class Seq2SeqTransformer(nn.Module):
-    def __init__(self,
-                 num_encoder_layers: int,
-                 num_decoder_layers: int,
-                 emb_size: int,
-                 nhead: int,
-                #  src_vocab_size: int,
-                 tgt_vocab_size: int,
-                 criterion,
-                 dim_feedforward: int = 512,
-                 dropout: float = 0.1,
-                 device: str = 'cpu'):
-        super(Seq2SeqTransformer, self).__init__()
-        self.cnn_encoder = Encoder(emb_size, device).to(device)
-        self.transformer = nn.Transformer(d_model=emb_size,
-                                       nhead=nhead,
-                                       num_encoder_layers=num_encoder_layers,
-                                       num_decoder_layers=num_decoder_layers,
-                                       dim_feedforward=dim_feedforward,
-                                       dropout=dropout,
-                                       batch_first=True,
-                                       norm_first=True).to(device)
-        self.generator = nn.Linear(emb_size, tgt_vocab_size).to(device)
-        # self.src_tok_emb = TokenEmbedding(src_vocab_size, emb_size)
-        self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, emb_size).to(device)
-        self.positional_encoding = PositionalEncoding(
-            emb_size, dropout=dropout).to(device)
-        self.criterion = criterion
-        self.device = device
-
-    def forward(self,
-                src: Tensor,
-                trg: Tensor):
-        loss = 0
-        image_features = self.cnn_encoder(src)
-        
-        trg_inp = trg[:, :-1]
-        trg_true = trg[:, 1:]
-        
-        _, tgt_mask, _, tgt_padding_mask = self.create_mask(image_features, trg_inp, 0)
-        
-        src_emb = self.positional_encoding(image_features)
-        
-        tgt_emb = self.positional_encoding(self.tgt_tok_emb(trg_inp))
-        transformers_out = self.transformer(src_emb, tgt_emb, None, tgt_mask, None,
-                                None, tgt_padding_mask, None)
-        logits = self.generator(transformers_out)
-        
-        # batch_size =  logits.shape[0]
-        # for i in range(batch_size):
-        #     loss += torch.mean(self.criterion(logits[:, i, :], trg_true[:, i]))
-        
-        # for pred, trgt in zip(logits, trg_true):
-        #     for pred1, trgt1 in zip(pred, trgt):
-        #         l = self.criterion(pred1, trgt1)
-        #         loss += (l)
-        
-        # for pred, trgt in zip(logits, trg_true):
-        #     loss += torch.mean(self.criterion(pred, trgt))
-            
-        for pred, trgt in zip(logits, trg_true):
-            loss += torch.sum(self.criterion(pred, trgt))
-        
-        # loss = self.criterion(logits.reshape(-1, logits.shape[-1]), trg_true.reshape(-1))
-        # return loss, loss / trg.shape[1]
-        # w = torch.sum(~(trg_true == 0))
-        return loss / torch.sum(~(trg_true == 0))
-        
-
-    # def encode(self, src: Tensor, src_mask: Tensor):
-    #     return self.transformer.encoder(self.positional_encoding(
-    #                         self.src_tok_emb(src)), src_mask)
-
-    # def decode(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor):
-    #     return self.transformer.decoder(self.positional_encoding(
-    #                       self.tgt_tok_emb(tgt)), memory,
-    #                       tgt_mask)
-    
-    def generate_square_subsequent_mask(self, sz):
-        mask = (torch.triu(torch.ones((sz, sz), device=self.device)) == 1).transpose(0, 1)
-        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-        return mask
-
-    def create_mask(self, src, tgt, pad_idx):
-        src_seq_len = src.shape[1]
-        tgt_seq_len = tgt.shape[1]
-
-        tgt_mask = self.generate_square_subsequent_mask(tgt_seq_len)
-        src_mask = torch.zeros((src_seq_len, src_seq_len), device=self.device).type(torch.bool)
-
-        src_padding_mask = (src == pad_idx)
-        tgt_padding_mask = (tgt == pad_idx)
-        return src_mask, tgt_mask, src_padding_mask, tgt_padding_mask
+from utils.checkpointing import Checkpointing
 
 
 class LatexDataset(Dataset):
@@ -667,7 +251,7 @@ class Training:
                                    shuffle=True, 
                                    drop_last=False, 
                                    pin_memory=True, 
-                                   num_workers=12,
+                                   num_workers=6,
                                    persistent_workers=True
                                    )
         # val_dataset = DataLoader(val_data, batch_size=self.params.batch_size, shuffle=True, drop_last=False)
@@ -770,7 +354,7 @@ class Training:
 
 class Image2Latex_load:
     loaded = False
-    d_p = "images_150\\"
+    dataset_path = "images_150\\"
     c_p = "5_dataset_large.json"
     VOCAB_SIZE = 300
     IMAGE_COUNT = 100
@@ -849,6 +433,13 @@ class Image2Latex_load:
     def input(self, inp, val):
         return val if inp == "" else inp
 
+    # def check_dataset(self, path: str):
+    #     if os.path.exists(path):
+    #         content = os.listdir(path)
+    #         if LABEL_FILE_NAME in content and IMGS_FOLDER_NAME in content:
+    #             return True
+    #     return False
+
     def train(self):
         print(f"Caption file must be in {os.path.abspath('.')}")
         print(f"Dataset folder must be in {os.path.abspath('.')}\\datasets\\")
@@ -862,8 +453,8 @@ class Image2Latex_load:
         if not self.loaded:
             print("\nPlease enter some data for new model: ")
             try:
-                self.d_p = self.input(
-                    input(f"dataset_path - Default = {self.d_p}: "), self.d_p)
+                self.dataset_path = self.input(
+                    input(f"dataset_path - Default = {self.dataset_path}: "), self.dataset_path)
                 self.c_p = self.input(
                     input(f"caption file - Default = {self.c_p}: "), self.c_p)
                 self.VOCAB_SIZE = int(
@@ -896,7 +487,7 @@ class Image2Latex_load:
                 raise TypeError("Model params initialization failed")
 
             self.loaded = True
-            self.dataset_path = os.path.abspath(".") + "\\datasets\\" + self.d_p
+            self.dataset_path = os.path.abspath(".") + "\\datasets\\" + self.dataset_path
             self.caption_path = os.path.abspath(".") + "\\" + self.c_p
 
             train = Training(device=self.device,
@@ -967,7 +558,8 @@ class Image2Latex_load:
         with torch.no_grad():
             img = self.load_image(image, torchvision.transforms.ToTensor()).unsqueeze(0)
                 
-            img_features = self.model.cnn_encoder(img)
+            # img_features = self.model.cnn_encoder(img)
+            img_features = self.model.vit_encoder(img)
 
             # Generate the caption using the Transformer decoder
             decoded_caption = "<start> "
@@ -978,8 +570,9 @@ class Image2Latex_load:
             tgt_emb = self.model.positional_encoding(self.model.tgt_tok_emb(torch.tensor(tokenized_caption)))
             src_emb = self.model.positional_encoding(img_features)
             
-            transformers_out = self.model.transformer(src_emb, tgt_emb, None, tgt_mask, None,
-                                    None, torch.tensor(tgt_padding_mask), None)
+            # transformers_out = self.model.transformer(src_emb, tgt_emb, None, tgt_mask, None,
+            #                         None, torch.tensor(tgt_padding_mask), None)
+            transformers_out = self.model.decoder(tgt_emb, img_features, tgt_mask, None, torch.tensor(tgt_padding_mask), None)
             logits = self.model.generator(transformers_out)
             
             predictions = (torch.softmax(logits[0, 0, :], -1) / temperature).unsqueeze(0).numpy()
@@ -996,8 +589,9 @@ class Image2Latex_load:
                     _, tmp_tgt_mask, _, tmp_tgt_padding_mask = self.model.create_mask(img_features, tmp_tokenized_caption, 0)
                     tmp_tgt_emb = self.model.positional_encoding(self.model.tgt_tok_emb(torch.tensor(tmp_tokenized_caption)))
                                         
-                    tmp_preds = torch.softmax(self.model.generator(self.model.transformer(src_emb, tmp_tgt_emb, None, tmp_tgt_mask, None,
-                                    None, torch.tensor(tmp_tgt_padding_mask), None)), -1)
+                    # tmp_preds = torch.softmax(self.model.generator(self.model.transformer(src_emb, tmp_tgt_emb, None, tmp_tgt_mask, None,
+                    #                 None, torch.tensor(tmp_tgt_padding_mask), None)), -1)
+                    tmp_preds = torch.softmax(self.model.generator(self.model.decoder(tmp_tgt_emb, img_features, tmp_tgt_mask, None, torch.tensor(tmp_tgt_padding_mask), None)), -1)
                     for obj in self.find_n_best((tmp_preds[0, i, :] / temperature).unsqueeze(0).numpy(), beam_width):
                         tmp_res.append(
                             [obj[0] + r[0], obj[1], r[2] + self.tokenizer.index_word[int(obj[1])] + " "])
@@ -1091,7 +685,7 @@ class Image2Latex_load:
         images = random.choices(capt, k=number)
         plotting = []
         for im in tqdm(images):
-            image_path = "C:\\users\\shace\\desktop\\lol2\\" + im["image_id"] + ".png"
+            image_path = "C:\\users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_val\\" + im["image_id"] + ".png"
             plotting.append([im["caption"], self.predict(decoder_type, image_path, temperature=0.9),
                              plt.imread(image_path), im["image_id"]])  # real ; pred ; plt image
 
@@ -1116,11 +710,13 @@ if __name__ == "__main__":
     # van = Image2Latex_load("torch_transformers_9_combined_pos_emb_RESNET", ckpt_idx=97, device=device)
     # van = Image2Latex_load("torch_transformers_10_combined_pos_emb_RESNET_XL_more_enc_dec", ckpt_idx=99, device=device)
     van = Image2Latex_load("torch_transformers_11_combined_pos_emb_RESNET_XXL", ckpt_idx=99, device=device)
-    # van = Image2Latex_load("torch_transformers_13", device=device)
+    # van = Image2Latex_load("torch_transformers_12_VIT_0.1_of_default_lr", device=device)
+    # van = Image2Latex_load("torch_transformers_14_ConvNext", device=device)
     # van.calulate_bleu_metric("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\",
     #                       "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json")
     # van.train()
     # van.train_from_ckpt()
     # van.random_predict("greedy", 10)
-    print(van.predict("greedy", "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150\\30ddb74074.png", temperature=0.9))
+    print(van.predict("greedy", "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150\\223c877e10.png", temperature=0.9))
+    # print(van.predict("greedy", "C:\\Users\\shace\\Desktop\\Resize_test\\CUBE_TORCH.png", temperature=0.9))
     # print(van.predict("greedy", "C:\\Users\\shace\\Desktop\\lol2\\180718.png", temperature=0.9))
