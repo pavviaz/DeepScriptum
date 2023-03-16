@@ -24,6 +24,8 @@ from keras_preprocessing.text import tokenizer_from_json
 from utils.device_def import enable_gpu
 from utils.images_preprocessing import make_fix_size
 from utils.logger_init import log_init
+from utils.metrics import levenshteinDistance, bleu_score
+from torchsummary import summary
 
 
 class Checkpointing():
@@ -697,7 +699,7 @@ class Image2Latex_load:
         if not self.loaded:
             raise ValueError("Model is not loaded!")
         return self.greedy_decoder(image_path=image_path)
-        # return self.beam_decoder(image_path, beam_width=4, temperature=0.3)
+        # return self.beam_decoder(image_path, beam_width=10, temperature=0.5)
         
     def index(self, array, item):
         for idx, val in np.ndenumerate(array):
@@ -794,7 +796,7 @@ class Image2Latex_load:
 
             # decoded_caption = decoded_caption.replace("<start> ", "")
             # decoded_caption = decoded_caption.replace(" <end>", "").strip()
-            print([' '.join(result) + ' <end>'])
+            return ' '.join(result)
 
 
     def load_image(self, img_name, transform):
@@ -816,36 +818,75 @@ class Image2Latex_load:
     #     if decoder == "beam":
     #         [print(r[:r.index("<end>")] + "\n") for r in res]
 
-    def random_predict(self, number=9):
+    def random_predict(self, number=5):
         if not self.loaded:
             raise ValueError("Model is not loaded!")
-        with open(self.params.caption_path, 'r+') as file:
+
+        with open("5_dataset_large_val.json", 'r+') as file:
             capt = json.load(file)["annotations"]
 
         parameters = {'axes.labelsize': 10,
                       'axes.titlesize': 10,
-                      'figure.subplot.hspace': 0.999}
+                      'figure.subplot.hspace': 0.999,
+                      'figure.subplot.wspace': 0.999}
         plt.rcParams.update(parameters)
         # print(plt.rcParams.keys())
         
         images = random.choices(capt, k=number)
         plotting = []
-        for im in images:
-            plotting.append([im["caption"], self.predict(self.params.dataset_path + im["image_id"] + ".png"),
-                             plt.imread(self.params.dataset_path + im["image_id"] + ".png"), im["image_id"]])  # real ; pred ; plt image
+        for im in tqdm(images):
+            try:
+                image_path = "C:\\users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_val\\" + im["image_id"] + ".png"
+                plotting.append([im["caption"], self.predict(decoder_type="greedy", image_path=image_path, temperature=0.5, )])  # real ; pred ; plt image
+            except:
+                continue
+            
+        l_dist = []
+        b = []
+        for plot in tqdm(plotting):
+            try:
+                edit_dist = levenshteinDistance(plot[0], plot[1])
+                bleu = bleu_score(plot[0], plot[1])
+                
+                l_dist.append(edit_dist)
+                b.append(bleu)
+            except:
+                continue
+            # print(plot[1])
+        # plt.show()
+        print(f"MEAN LEV. DIST = {np.mean(l_dist)}")
+        print(f"MEAN BLEU = {np.mean(bleu)}")
 
-        _, axes = plt.subplots(nrows=5, ncols=1)
+    # def random_predict(self, number=9):
+    #     if not self.loaded:
+    #         raise ValueError("Model is not loaded!")
+    #     with open(self.params.caption_path, 'r+') as file:
+    #         capt = json.load(file)["annotations"]
 
-        for ax, plot in zip(axes.flat, plotting):
-            ax.imshow(plot[2])
-            # edit_dist = levenshteinDistance(
-            #     plot[0], plot[1][0].replace('<end>', '')[:-2])
-            # bleu = nltk.translate.bleu_score.sentence_bleu([list(filter(lambda a: a != " ", plot[0].split(" ")))], list(
-            #     filter(lambda a: a != " ", plot[1][0][:plot[1][0].index("<end>")].split(" "))))
-            ax.set(
-                title=f"img_name = {plot[-1]}\nreal = {plot[0]}\npred = {plot[1][0][:plot[1][0].index('<end>')]}\nbleu = {0}")
-            ax.axis('off')
-        plt.show()
+    #     parameters = {'axes.labelsize': 10,
+    #                   'axes.titlesize': 10,
+    #                   'figure.subplot.hspace': 0.999}
+    #     plt.rcParams.update(parameters)
+    #     # print(plt.rcParams.keys())
+        
+    #     images = random.choices(capt, k=number)
+    #     plotting = []
+    #     for im in images:
+    #         plotting.append([im["caption"], self.predict(self.params.dataset_path + im["image_id"] + ".png"),
+    #                          plt.imread(self.params.dataset_path + im["image_id"] + ".png"), im["image_id"]])  # real ; pred ; plt image
+
+    #     _, axes = plt.subplots(nrows=5, ncols=1)
+
+    #     for ax, plot in zip(axes.flat, plotting):
+    #         ax.imshow(plot[2])
+    #         # edit_dist = levenshteinDistance(
+    #         #     plot[0], plot[1][0].replace('<end>', '')[:-2])
+    #         # bleu = nltk.translate.bleu_score.sentence_bleu([list(filter(lambda a: a != " ", plot[0].split(" ")))], list(
+    #         #     filter(lambda a: a != " ", plot[1][0][:plot[1][0].index("<end>")].split(" "))))
+    #         ax.set(
+    #             title=f"img_name = {plot[-1]}\nreal = {plot[0]}\npred = {plot[1][0][:plot[1][0].index('<end>')]}\nbleu = {0}")
+    #         ax.axis('off')
+    #     plt.show()
         
 
 # torch.autograd.set_detect_anomaly(True)
@@ -854,5 +895,5 @@ van = Image2Latex_load("model_latex_pt_5", device=device)
 # van.calulate_bleu_metric("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\",
 #                       "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json")
 # van.train()
-# van.random_predict(5)
-van.predict("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150\\64e0a73c64.png")
+van.random_predict(1000)
+# van.predict("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150\\69.png")

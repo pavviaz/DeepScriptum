@@ -1,6 +1,8 @@
+import json
 import os
 from tqdm import tqdm
 from PIL import Image
+from shutil import copy
 
 
 def width_height_info(path):
@@ -20,6 +22,16 @@ def width_height_info(path):
         w_m += img.size[0]
         h_m += img.size[1]
     print(f"w_m = {w_m} ; h_m = {h_m}\nw_m = {w_m / len(dir)} ; h_m = {h_m / len(dir)}\nw_max = {max(w)} ; h_max = {max(h)}")
+
+
+def tiny(path, path2):
+    dir = os.listdir(path)
+
+    for d in tqdm(dir):
+        img = Image.open(path + d)
+        if img.size[0] < 940 and img.size[1] < 110:
+            copy(path + d, path2 + d)
+        
 
 
 def resize(image_pil, width, height):
@@ -43,4 +55,16 @@ def resize(image_pil, width, height):
     return background.convert('RGB')
 
 
-width_height_info("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\handlim\\")
+# width_height_info("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_ng_rgb\\")
+# tiny("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_ng_rgb\\", "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_ng_rgb_tiny\\")
+
+with open("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\dataset_NG_cleaned_tiny.json", "r+") as file:
+    dataset = json.load(file)
+
+    errors = [el.replace(".png", "") for el in os.listdir("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_ng_rgb_tiny\\")]
+    l = []
+    for el in tqdm(dataset["annotations"]):
+        if el["image_id"] in errors:
+            l.append(el)
+    dataset["annotations"] = l
+    json.dump(dataset, file, indent=4)

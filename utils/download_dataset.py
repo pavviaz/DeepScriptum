@@ -45,13 +45,18 @@ def download_images(dct, path, start, end):
             urllib.request.urlretrieve(
                 f"https://latex.codecogs.com/png.download?%5Cdpi%7B{FONT_SIZE}%7D%20%5Cbg_white%20%5C{SIZE}%20{res}",
                 path + k + ".png")
-            # time.sleep(0.25)
         except Exception as e:
-            print(e)
-            # print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-            # print('/'.join(check_path(path).split('/')[:-2]))
-            with open(check_path('/'.join(check_path(path).split('/')[:-2])) + "errors.txt", "a+") as f:
-                f.write(f"\nkey - {k}  val = {v}  res = {res}\n")
+            # print(e)
+            print(f"Error {e}! Trying redownload...")
+            time.sleep(0.25)
+            
+            try:
+                urllib.request.urlretrieve(
+                    f"https://latex.codecogs.com/png.download?%5Cdpi%7B{FONT_SIZE}%7D%20%5Cbg_white%20%5C{SIZE}%20{res}",
+                    path + k + ".png")
+            except:
+                with open(check_path('/'.join(check_path(path).split('/')[:-2])) + "errors.txt", "a+") as f:
+                    f.write(f"\nkey - {k}  val = {v}  res = {res}\n")
 
 
 def compute_threads_work(length, download_threads):
@@ -64,10 +69,11 @@ def compute_threads_work(length, download_threads):
             (from, to) tuple
     """
     amount = length // download_threads
-    while length > 0:
+    while length > amount:
         tmp = length
         length = 0 if length - amount < 0 else length - amount
-        yield (length, tmp)
+        yield (length, tmp) if length > amount else (0, tmp)
+        
 
 
 def check_path(path):
@@ -162,4 +168,4 @@ def download_dataset(directory: str, caption_path: str, amount_prop: float = 1.0
 #         print(all_lst)
 
 if __name__ == "__main__":
-    download_dataset("C:/Users/shace/Desktop/lol2/", "C:/Users/shace/Documents/GitHub/im2latex/5_dataset_large_val.json")
+    download_dataset("C:/Users/shace/Desktop/lol2/", "C:/Users/shace/Documents/GitHub/im2latex/dataset_NG.json")
