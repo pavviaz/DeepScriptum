@@ -10,6 +10,10 @@ class Encoder(nn.Module):
             super().__init__()
             self.device = device
             self.resnet = ResNet34(3, ResBlock)
+            
+            # resnet = torchvision.models.resnet18(pretrained=False)
+            # self.resnet = torch.nn.Sequential(*(list(resnet.children())[:-2]))  # Exclude AvgPool and Linear layers
+            
             # self.convnext = ConvNextEncoder(3, stem_features=64, depths=[3,4,6,4], widths=[256, 512, 1024, 2048])
             self.fc = nn.LazyLinear(out_features=emb_dim)
 

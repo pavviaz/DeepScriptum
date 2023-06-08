@@ -72,7 +72,7 @@ class Seq2SeqTransformer(nn.Module):
         # loss = self.criterion(logits.reshape(-1, logits.shape[-1]), trg_true.reshape(-1))
         # return loss, loss / trg.shape[1]
         # w = torch.sum(~(trg_true == 0))
-        return loss / torch.sum(~(trg_true == 0))
+        return loss / torch.sum(~(trg_true == 0)), logits
     
     def generate_square_subsequent_mask(self, sz):
         mask = (torch.triu(torch.ones((sz, sz), device=self.device)) == 1).transpose(0, 1)

@@ -56,15 +56,15 @@ def resize(image_pil, width, height):
 
 
 # width_height_info("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_ng_rgb\\")
-# tiny("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_ng_rgb\\", "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_ng_rgb_tiny\\")
+tiny("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_merged_regenerated_ng_tiny\\", "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_merged_regenerated_ng_tiny_tmp\\")
 
-with open("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\dataset_NG_cleaned_tiny.json", "r+") as file:
-    dataset = json.load(file)
+# with open("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\dataset_NG_cleaned_tiny.json", "r+") as file:
+#     dataset = json.load(file)
 
-    errors = [el.replace(".png", "") for el in os.listdir("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_ng_rgb_tiny\\")]
-    l = []
-    for el in tqdm(dataset["annotations"]):
-        if el["image_id"] in errors:
-            l.append(el)
-    dataset["annotations"] = l
-    json.dump(dataset, file, indent=4)
+#     errors = [el.replace(".png", "") for el in os.listdir("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_ng_rgb_tiny\\")]
+#     l = []
+#     for el in tqdm(dataset["annotations"]):
+#         if el["image_id"] in errors:
+#             l.append(el)
+#     dataset["annotations"] = l
+#     json.dump(dataset, file, indent=4)

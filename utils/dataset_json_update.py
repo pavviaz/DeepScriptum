@@ -157,19 +157,19 @@ def mbox_fix(d_path="C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_la
 # print(split_data("8/4\\lim_{x\\to\\infty}\\frac{-8\\frac{\\sin{3/x}}{x^{5}}}{-2x^{-3}}"))
 
 
-import re
+# import re
 
-fef = ["\operatorname { l o g } M _ { \mathrm { 2 0 0 b } } - \operatorname { l o g } M _ { \mathrm { v i r } } = 0 . 0 0 5 2 ( \operatorname { l o g } M _ { \mathrm { v i r } } - 1 3 . 5 ) + 0 . 0 4 9 8",
-       "\operatorname* { l i m } _ { t \rightarrow + \infty } \widetilde { V } _ { N _ { R } - n + 1 } ^ { t } ( \widetilde { S } _ { f } ^ { i , s } ) = \widetilde { V } _ { N _ { R } - n + 1 } ( \widetilde { S } _ { f } ^ { i , s } ) \nonumber ."]
+# fef = ["\operatorname { l o g } M _ { \mathrm { 2 0 0 b } } - \operatorname { l o g } M _ { \mathrm { v i r } } = 0 . 0 0 5 2 ( \operatorname { l o g } M _ { \mathrm { v i r } } - 1 3 . 5 ) + 0 . 0 4 9 8",
+#        "\operatorname* { l i m } _ { t \rightarrow + \infty } \widetilde { V } _ { N _ { R } - n + 1 } ^ { t } ( \widetilde { S } _ { f } ^ { i , s } ) = \widetilde { V } _ { N _ { R } - n + 1 } ( \widetilde { S } _ { f } ^ { i , s } ) \nonumber ."]
 
-for line in fef:
-    line = line.replace("\n", "")
+# for line in fef:
+#     line = line.replace("\n", "")
     
-    if not "operatorname" in line:
-        continue
+#     if not "operatorname" in line:
+#         continue
     
-    r = re.findall(r"\\operatorname {[^\}]+}", line) + re.findall(r"\\operatorname\* {[^\}]+}", line)
-    for sub in r:
-        rr = re.findall(r"{[^\}]+}", sub)
-        res = "\\mathrm { " + rr[0].strip("{}").replace(" ", "") + " }"
-        line = line.replace(sub, res, 1)
+#     r = re.findall(r"\\operatorname {[^\}]+}", line) + re.findall(r"\\operatorname\* {[^\}]+}", line)
+#     for sub in r:
+#         rr = re.findall(r"{[^\}]+}", sub)
+#         res = "\\mathrm { " + rr[0].strip("{}").replace(" ", "") + " }"
+#         line = line.replace(sub, res, 1)

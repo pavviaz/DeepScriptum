@@ -19,13 +19,14 @@ import torchvision
 from torchvision import transforms, datasets
 from torchvision.io import read_image, ImageReadMode
 from torch.utils.data import DataLoader, Dataset
+from torchinfo import summary
 from tqdm import tqdm
 from keras_preprocessing.text import tokenizer_from_json
 from utils.device_def import enable_gpu
 from utils.images_preprocessing import make_fix_size
 from utils.logger_init import log_init
 from utils.metrics import levenshteinDistance, bleu_score
-from torchsummary import summary
+# from torchsummary import summary
 
 
 class Checkpointing():
@@ -624,6 +625,7 @@ class Image2Latex_load:
                                  decoder=self.decoder,
                                  model=self.model)
             ckpt.load()
+            # summary(self.decoder, input_size=[(1, 1), (1, 348, 200), (1, 200), (1, 200)], dtypes=[torch.int64, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor], device=self.device)
         
     def get_model_path(self):
         return self.model_path
@@ -889,11 +891,10 @@ class Image2Latex_load:
     #     plt.show()
         
 
-# torch.autograd.set_detect_anomaly(True)
 device = enable_gpu(False)
 van = Image2Latex_load("model_latex_pt_5", device=device)
 # van.calulate_bleu_metric("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\",
 #                       "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json")
 # van.train()
-van.random_predict(1000)
-# van.predict("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150\\69.png")
+# van.random_predict(1000)
+# print(van.predict("C:\\Users\\shace\\Desktop\\LaTeX_exp2\\25356.png"))

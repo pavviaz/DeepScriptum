@@ -1,7 +1,5 @@
-from collections import Counter
-import math
-
-import numpy as np
+import nltk
+from rouge_score import rouge_scorer
 
 
 def levenshteinDistance(s1, s2):
@@ -21,71 +19,16 @@ def levenshteinDistance(s1, s2):
         return distances[-1]
 
 
-def n_gram_generator(sentence,n= 2,n_gram= False):
-    '''
-    N-Gram generator with parameters sentence
-    n is for number of n_grams
-    The n_gram parameter removes repeating n_grams 
-    '''
-    sentence = sentence.lower() # converting to lower case
-    sent_arr = np.array(sentence.split()) # split to string arrays
-    length = len(sent_arr)
-
-    word_list = []
-    for i in range(length+1):
-        if i < n:
-            continue
-        word_range = list(range(i-n,i))
-        s_list = sent_arr[word_range]
-        string = ' '.join(s_list) # converting list to strings
-        word_list.append(string) # append to word_list
-        if n_gram:
-            word_list = list(set(word_list))
-    return word_list
-
-
-def bleu_score(original,machine_translated):
-    '''
-    Bleu score function given a orginal and a machine translated sentences
-    '''
-    mt_length = len(machine_translated.split())
-    o_length = len(original.split())
-
-    # Brevity Penalty 
-    if mt_length>o_length:
-        BP=1
-    else:
-        penality=1-(mt_length/o_length)
-        BP=np.exp(penality)
-
-    # Clipped precision
-    clipped_precision_score = []
-    for i in range(1, 5):
-        original_n_gram = Counter(n_gram_generator(original,i))
-        machine_n_gram = Counter(n_gram_generator(machine_translated,i))
-
-        c = sum(machine_n_gram.values())
-        for j in machine_n_gram:
-            if j in original_n_gram:
-                if machine_n_gram[j] > original_n_gram[j]:
-                    machine_n_gram[j] = original_n_gram[j]
-            else:
-                machine_n_gram[j] = 0
-
-        #print (sum(machine_n_gram.values()), c)
-        clipped_precision_score.append(sum(machine_n_gram.values())/c)
-
-    #print (clipped_precision_score)
-
-    weights =[0.25]*4
-
-    s = (w_i * math.log(p_i) for w_i, p_i in zip(weights, clipped_precision_score))
-    s = BP * math.exp(math.fsum(s))
-    return s
-
-
 if __name__ == "__main__":
-    original = "P ( \\nu ; r _ { t } ) \propto \\nu ^ { - 2 ( 1 - \\beta ) } ."
-    machine_translated = "P ( \\nu ; r _ { t } ) \propto \\nu ^ { - 2 ( 1 - \\zeta ) } ."
+    original = "\\alpha N _ { f } = \\alpha ( \\sum _ { I = 1 } ^ { 9 } v _ { I } \\gamma _ { I } + \\sum _ { i = 1 } ^ { 3 } \\frac { i \\mu x ^ { i } } { 4 } \\{ \\gamma _ { i } , \\gamma _ { 1 2 3 } \\} ) + \\alpha ^ { 2 } \\mu ^ { 2 } / 4 ^ { 2 }"
+    # machine_translated = "\\alpha N _ { f } = \\alpha ( \\sum _ { I = 1 } ^ { 9 } v _ { I } \\gamma _ { I } + \\sum _ { i = 1 } ^ { 3 } \\frac { i \\mu x ^ { i } } { 4 } \\{ \\gamma _ { i } , \\gamma _ { 1 2 3 } \\} ) + \\alpha ^ { 2 } \\mu ^ { 2 } / 4 ^ { 2 }"
+    machine_translated = "\\alpha N _ { f } = \\alpha ( \\sum _ { l = 1 } ^ { 9 } v _ { I } \\gamma _ { J } + \\sum _ { i = 1 } ^ { 3 } \\frac { i \\mu x ^ { i } } { 4 } \\{ \\gamma _ { i } , \\gamma _ { l 2 3 } \\} ) + \\alpha ^ { 2 } \\mu ^ { 2 } / 4 ^ { 2 }"
 
-    print(bleu_score(original, machine_translated))
+    scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2'], use_stemmer=True)
+    print(nltk.translate.bleu(references=[original.split()], hypothesis=machine_translated.split()))
+    print(levenshteinDistance(original, machine_translated))
+    score = scorer.score(original, machine_translated)["rouge1"][-1]
+    print(scorer.score(original, machine_translated))
+
+
+#-(8(4a+5b+8c)^2)/(a^2b)-(5(4a+5b+8c)^2)/(a^2c)+(8(4a+5b+8c)^2)/(abc)=0 and -(8(4a+5b+8c)^2)/(ab^2)-(4(4a+5b+8c)^2)/(b^2c)+(10(4a+5b+8c)^2)/(abc)=0 and -(5(4a+5b+8c)^2)/(ac^2)-(4(4a+5b+8c)^2)/(bc^2)+(16(4a+5b+8c)^2)/(abc)=0

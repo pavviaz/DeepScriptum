@@ -11,8 +11,9 @@ import keras
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.utils.data import random_split
 
-from torchsummary import summary
+from torchinfo import summary
 import torchvision
 from torchvision.io import read_image, ImageReadMode
 from torch.utils.data import DataLoader, Dataset
@@ -21,13 +22,17 @@ from keras_preprocessing.text import tokenizer_from_json
 
 from models.torch.cnn_encoder import Encoder
 from models.torch.seq2seqCnnTransformer import Seq2SeqTransformer
+from models.torch.seq2seqCnnTransformerDecoderOnly import Seq2SeqTransformerDecOnly
 from models.torch.seq2seqVIT import Seq2SeqTransformerVIT
+from utils.dataset_json_update import split_data
 
 from utils.device_def import enable_gpu
 from utils.logger_init import log_init
 from utils.images_preprocessing import make_fix_size
 from utils.checkpointing import Checkpointing
 from utils.metrics import bleu_score, levenshteinDistance
+from rouge_score import rouge_scorer
+from nltk.translate import bleu_score
 
 from tokenizers import Tokenizer, pre_tokenizers
 from tokenizers.models import Unigram, WordLevel, WordPiece
@@ -106,11 +111,16 @@ class Training:
     def calc_max_length(self, tensor):
         return max(len(t) for t in tensor)
     
-    
     def calc_max_length_hf(self, tensor, pad_id):
         for el in tensor:
             if not pad_id in el:
                 return len(el)
+
+    @staticmethod
+    def accuracy(y_pred, y_true):
+        assert y_pred.shape == y_true.shape
+        a = torch.sum(y_pred == y_true)
+        return a / y_pred.shape[0]
 
     def get_image_to_caption(self, annotations_file):
         # словарь, в который автоматически будет добавляться лист при попытке доступа к несущестувующему ключу
@@ -118,8 +128,9 @@ class Training:
         for val in annotations_file['annotations']:
             caption = f"<start> {val['caption']} <end>"
             image_path = self.params.dataset_path + val["image_id"] + ".png"
-            image_path_to_caption[image_path].append(
-                caption)  # словарь типа 'путь_фото': ['описание1', 'описание2', ...]
+            if os.path.exists(image_path):
+                image_path_to_caption[image_path].append(
+                    caption)  # словарь типа 'путь_фото': ['описание1', 'описание2', ...]
 
         return image_path_to_caption
 
@@ -254,7 +265,7 @@ class Training:
         random.shuffle(img_keys)
         # print(img_keys[:100])
 
-        slice_index = int(len(img_keys) * 1)
+        slice_index = int(len(img_keys) * 0.9)
         img_name_train_keys, img_name_val_keys = img_keys[:slice_index], img_keys[slice_index:]
 
         img_name_train = []
@@ -284,7 +295,12 @@ class Training:
                                      self.params.image_size[1], 
                                      torchvision.transforms.ToTensor(),
                                      False)
-        #  val_data = LatexDataset(img_name_val, cap_val, self.params.image_size[0], self.params.image_size[1], torchvision.transforms.ToTensor())
+        val_data = LatexDataset(img_name_val,
+                                cap_val, 
+                                self.params.image_size[0], 
+                                self.params.image_size[1], 
+                                torchvision.transforms.ToTensor(),
+                                False)
         
         train_dataset = DataLoader(training_data, 
                                    batch_size=self.params.batch_size, 
@@ -294,6 +310,15 @@ class Training:
                                    num_workers=6,
                                    persistent_workers=True
                                    )
+        val_dataset = DataLoader(val_data, 
+                                   batch_size=self.params.batch_size, 
+                                   shuffle=True, 
+                                   drop_last=False, 
+                                   pin_memory=True, 
+                                   num_workers=6,
+                                   persistent_workers=True
+                                   )
+        
         # val_dataset = DataLoader(val_data, batch_size=self.params.batch_size, shuffle=True, drop_last=False)
         
         # for im, cap in train_dataset:
@@ -312,6 +337,14 @@ class Training:
                                    criterion=criterion,
                                    dim_feedforward=self.params.ff_dim,
                                    device=self.device)
+        
+        # model = Seq2SeqTransformerDecOnly(num_decoder_layers=self.params.num_decoder_layers, 
+        #                                   emb_size=self.params.embedding_dim,
+        #                                   nhead=self.params.nhead,
+        #                                   tgt_vocab_size=self.params.vocab_size,
+        #                                   criterion=criterion,
+        #                                   dim_feedforward=self.params.ff_dim,
+        #                                   device=self.device)
         
         # model = Seq2SeqTransformerVIT(num_encoder_layers=self.params.num_encoder_layers, 
         #                               num_decoder_layers=self.params.num_decoder_layers, 
@@ -347,23 +380,7 @@ class Training:
                 
                 optimizer.zero_grad()
                 
-                # print(f"img_tensor shape = {img_tensor.shape}")
-                # print(f"target shape = {target.shape}")
-
-                # print(img_tensor.numpy())
-                # print(target.numpy())
-                
-                loss = model(src=img_tensor, trg=target)
-                
-                # output = output[1:]
-                # target = target[:, 1:].to(device)
-                
-                # output = output.view(-1, output.shape[-1])
-                # target = target.reshape(-1)
-                
-                # loss = criterion(output, target)
-                # for idx, t in enumerate(loss):
-                #     print(f"{idx}) {t.item()}", end=' ', sep='\n')
+                loss, train_logits = model(src=img_tensor, trg=target)
                 
                 loss.backward()
 
@@ -377,9 +394,22 @@ class Training:
                     # average_batch_loss = batch_loss.numpy() / \
                     #     int(target.shape[1])
                     self.logger.info(
-                        f'Epoch {epoch + 1} Batch {batch} Loss = {loss.item()}')
+                        f'Epoch {epoch + 1} Batch {batch} Loss = {loss.item()} Accuracy = {self.accuracy(torch.argmax(train_logits, dim=-1), target[:, 1:])}')
             # storing the epoch end loss value to plot later
             # loss_plot.append(total_loss / num_steps)
+            
+            val_loss = []
+            val_acc = []
+            with torch.no_grad():
+                for (batch, (img_tensor, target)) in tqdm(enumerate(val_dataset)):
+                    img_tensor, target = img_tensor.to(self.device), target.type(torch.LongTensor).to(self.device)
+                    
+                    loss, val_logits = model(src=img_tensor, trg=target)
+                    
+                    val_loss.append(loss.item())
+                    val_acc.append(self.accuracy(torch.argmax(val_logits, dim=-1), target[:, 1:]).item())
+                
+                self.logger.info(f'Epoch {epoch + 1} Val Loss = {np.mean(val_loss)} Accuracy = {np.mean(val_acc).item()}')
 
             ckpt.save()
             self.logger.info(f"Epoch {epoch} checkpoint saved!")
@@ -394,12 +424,14 @@ class Training:
 
 class Image2Latex_load:
     loaded = False
-    dataset_path = "images_150\\"
-    c_p = "5_dataset_large.json"
+    dataset_path = "images_150_merged_regenerated_ng_tiny\\"
+    c_p = "dataset_NG_merged.json"
     VOCAB_SIZE = 300
     IMAGE_COUNT = 100
     IMG_H = 110
     IMG_W = 940
+    # IMG_H = 112
+    # IMG_W = 944
     TOKENIZER_TYPE = "hf"
     BATCH_SIZE = 24
     NUM_ENCODER_LAYERS = 3
@@ -459,6 +491,14 @@ class Image2Latex_load:
                                    criterion=None,
                                    dim_feedforward=self.params.ff_dim,
                                    device=self.device)
+            
+            # self.model = Seq2SeqTransformerDecOnly(num_decoder_layers=self.params.num_decoder_layers, 
+            #                                        emb_size=self.params.embedding_dim,
+            #                                        nhead=self.params.nhead,
+            #                                        tgt_vocab_size=self.params.vocab_size,
+            #                                        criterion=None,
+            #                                        dim_feedforward=self.params.ff_dim,
+            #                                        device=self.device)
             
             # self.model = Seq2SeqTransformerVIT(num_encoder_layers=self.params.num_encoder_layers, 
             #                        num_decoder_layers=self.params.num_decoder_layers, 
@@ -601,6 +641,8 @@ class Image2Latex_load:
     
     def beam_decoder(self, image, beam_width=10, temperature=0.3, return_only_correct=True):
         self.model.eval()
+        
+        # tokenizer_func = self.tokenizer.id_to_token if self.params.tokenizer_type == "hf" else  
         with torch.no_grad():
             img = self.load_image(image, torchvision.transforms.ToTensor()).unsqueeze(0)
                 
@@ -627,6 +669,7 @@ class Image2Latex_load:
             
             predictions = (torch.softmax(logits[0, 0, :], -1) / temperature).unsqueeze(0).numpy()
             init = self.find_n_best(predictions, beam_width)
+            # self.tokenizer.index_word[int(obj[1])]
             results = [[obj[0], obj[1], decoded_caption + self.tokenizer.id_to_token(int(obj[1])) + " "] for obj in
                     init]  # 0 - prob ; 1 - id ; 2 - hidden
 
@@ -669,16 +712,10 @@ class Image2Latex_load:
         return [el for el in results]
         
     def greedy_decoder(self, image_path):
-        # self.model.cnn_encoder.eval()
-        # self.model.transformer.eval()
-        # self.model.generator.eval()
-        # self.model.tgt_tok_emb.eval()
-        # self.model.positional_encoding.eval()
-        
         self.model.eval()
         with torch.no_grad():
             # Read the image from the disk
-            img = self.load_image(image_path, torchvision.transforms.ToTensor()).unsqueeze(0)
+            img = self.load_image(image_path, torchvision.transforms.ToTensor()).unsqueeze(0).to(self.device)
             
             img_features = self.model.cnn_encoder(img)
             # img_features = self.model.vit_encoder(img)
@@ -693,13 +730,16 @@ class Image2Latex_load:
                     
                 _, tgt_mask, _, tgt_padding_mask = self.model.create_mask(img_features, tokenized_caption, 0)
                 
-                tgt_emb = self.model.positional_encoding(self.model.tgt_tok_emb(torch.tensor(tokenized_caption)))
+                tgt_emb = self.model.positional_encoding(self.model.tgt_tok_emb(torch.tensor(tokenized_caption).to(self.device)))
                 src_emb = self.model.positional_encoding(img_features)
+                
                 # transformers_out = self.model.decoder(tgt_emb, img_features, tgt_mask, None, torch.tensor(tgt_padding_mask), None)
-                transformers_out = self.model.transformer(src_emb, tgt_emb, None, tgt_mask, None,
-                                None, torch.tensor(tgt_padding_mask), None)
+                
+                # transformers_out = self.model.transformer_decoder(tgt_emb, src_emb, tgt_mask, None, torch.tensor(tgt_padding_mask), None)
+                
+                transformers_out = self.model.transformer(src_emb, tgt_emb, None, tgt_mask, None, None, torch.tensor(tgt_padding_mask).to(self.device), None)
                 logits = self.model.generator(transformers_out)
-                sampled_token_index = np.argmax(logits[0, i, :])
+                sampled_token_index = np.argmax(logits.cpu()[0, i, :])
                 sampled_token = self.tokenizer.index_word[sampled_token_index.item()] if self.params.tokenizer_type == "keras" else self.tokenizer.id_to_token(sampled_token_index.item())
                 decoded_caption += " " + sampled_token
                 # print(decoded_caption)
@@ -730,44 +770,58 @@ class Image2Latex_load:
     #     if decoder == "beam":
     #         [print(r[:r.index("<end>")] + "\n") for r in res]
     
-    # def random_predict(self, number=5):
-    #     if not self.loaded:
-    #         raise ValueError("Model is not loaded!")
+    def testing(self, val_dataset, labels):
+        if not self.loaded:
+            raise ValueError("Model is not loaded!")
 
-    #     with open("5_dataset_large_val.json", 'r+') as file:
-    #         capt = json.load(file)["annotations"]
-
-    #     parameters = {'axes.labelsize': 10,
-    #                   'axes.titlesize': 10,
-    #                   'figure.subplot.hspace': 0.999,
-    #                   'figure.subplot.wspace': 0.999}
-    #     plt.rcParams.update(parameters)
-    #     # print(plt.rcParams.keys())
+        bleus = []
+        levens = []
+        rouge1 = []
+        rouge2 = []
+        exact_match = 0
         
-    #     images = random.choices(capt, k=number)
-    #     plotting = []
-    #     for im in tqdm(images):
-    #         try:
-    #             image_path = "C:\\users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_val\\" + im["image_id"] + ".png"
-    #             plotting.append([im["caption"], self.predict(decoder_type="greedy", image_path=image_path, temperature=0.5, )])  # real ; pred ; plt image
-    #         except:
-    #             continue
+        with open(labels, "r") as file:
+            dataset = json.load(file)["annotations"]
+        
+        dataset = dataset[:1000]
+        
+        scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2'], use_stemmer=True)
+        chencherry =  bleu_score.SmoothingFunction()
+
+        for img in tqdm(dataset):
+            if len(img["caption"].split()) < 5:
+                continue
             
-    #     l_dist = []
-    #     b = []
-    #     for plot in tqdm(plotting):
-    #         try:
-    #             edit_dist = levenshteinDistance(plot[0], plot[1])
-    #             bleu = bleu_score(plot[0], plot[1])
+            try:
+                pred = self.predict(decoder_type="greedy", image_path=os.path.join(val_dataset, f"{img['image_id']}.png")).replace("  ", " ").replace(" ##", "").strip()
                 
-    #             l_dist.append(edit_dist)
-    #             b.append(bleu)
-    #         except:
-    #             continue
-    #         # print(plot[1])
-    #     # plt.show()
-    #     print(f"MEAN LEV. DIST = {np.mean(l_dist)}")
-    #     print(f"MEAN BLEU = {np.mean(bleu)}")
+                b = bleu_score.sentence_bleu(references=[img["caption"].split()], 
+                                             hypothesis=pred.split(), 
+                                            #  smoothing_function=chencherry.method7
+                                             )
+                # if b - 0.05 <= 0:
+                #     print()
+                l = levenshteinDistance(img["caption"], pred)
+                
+                r_scores = scorer.score(img["caption"], pred)
+                r1 = r_scores["rouge1"][-1]
+                r2 = r_scores["rouge2"][-1]
+                ex = 1 if img["caption"] == pred else 0
+            except:
+                continue
+            
+            bleus.append(b)
+            levens.append(l)
+            rouge1.append(r1)
+            rouge2.append(r2)
+            exact_match += ex
+            
+        print(f"BLEU STATS:\nMIN = {np.min(bleus)} --- MAX = {np.max(bleus)} --- MEAN = {np.mean(bleus)} --- STD = {np.std(bleus)}\n")
+        print(f"LEVD STATS:\nMIN = {np.min(levens)} --- MAX = {np.max(levens)} --- MEAN = {np.mean(levens)} --- STD = {np.std(levens)}\n")
+        print(f"ROG1 STATS:\nMIN = {np.min(rouge1)} --- MAX = {np.max(rouge1)} --- MEAN = {np.mean(rouge1)} --- STD = {np.std(rouge1)}\n")
+        print(f"ROG2 STATS:\nMIN = {np.min(rouge2)} --- MAX = {np.max(rouge2)} --- MEAN = {np.mean(rouge2)} --- STD = {np.std(rouge2)}\n")
+        print(f"EXACT_MATCH = {exact_match / len(dataset)}\n")
+        print(f"NORM_LEVD = {1 - np.mean(levens / np.linalg.norm(levens))}\n")
 
     def random_predict(self, decoder_type, number=5):
         if not self.loaded:
@@ -785,7 +839,9 @@ class Image2Latex_load:
         plt.rcParams.update(parameters)
         # print(plt.rcParams.keys())
         
-        random.seed("ERGDRJHUGREGT654RGHMKGAH")
+        # capt = list(filter(lambda x: len(x["caption"]) > 200, capt))
+        
+        # random.seed("ERGDRJHUGREGT654RGHMKGAH")
         images = random.choices(capt, k=number)
         plotting = []
         for im in tqdm(images):
@@ -812,18 +868,14 @@ class Image2Latex_load:
 if __name__ == "__main__":
     device = enable_gpu(False)
 
-    van = Image2Latex_load("torch_transformers_11_combined_pos_emb_RESNET_XXL", device=device)
-    # print(van.predict("greedy", "C:\\Users\\shace\\Desktop\\LaTeX_exp2\\25356.png", temperature=0.5))
-    # van.random_predict(decoder_type="greedy", number=5)йй
+    # van = Image2Latex_load("torch_transformers_11_combined_pos_emb_RESNET_XXL", device=device)
+    # van.random_predict(decoder_type="greedy", number=5)
     
-    # van = Image2Latex_load("torch_transformers_12_VIT_0.1_of_default_lr", device=device)
-    # van = Image2Latex_load("torch_transformers_15", ckpt_idx=96, device=device)
+    # van = Image2Latex_load("torch_transformers_12_VIT_0.1_of_default_lr", device=device)  
+    # van = Image2Latex_load("torch_transformers_16", device=device)
+    van = Image2Latex_load("torch_transformers_16_v2", device=device)
 
     # van.train()
     # van.train_from_ckpt()
-    # van.random_predict(decoder_type="greedy", number=5)
-    # print(van.predict("greedy", "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150\\47312.png", temperature=0.5))
-    print(van.predict("greedy", "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_val\\82214.png", temperature=0.5))
-    # print(van.predict("greedy", "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150_ng_rgb_tiny\\31427.png", temperature=0.9))
-    # print(van.predict("greedy", "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\d.png", temperature=0.9, beam_return_only_correct=False, postprocess=False))
-    # print(van.predict("greedy", "C:\\Users\\shace\\Desktop\\LaTeX_exp2\\25356.png", temperature=0.5))
+    # van.testing(val_dataset="C:/Users/shace/Documents/GitHub/im2latex/datasets/images_150_test_rgb", labels="C:/Users/shace/Documents/GitHub/im2latex/test_dataset.json")
+    van.random_predict(decoder_type="greedy", number=5)

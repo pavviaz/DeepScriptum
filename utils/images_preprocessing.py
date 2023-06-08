@@ -29,7 +29,8 @@ def crop_pad_image(img, output_path):
     x_min = np.min(nnz_inds[1])
     x_max = np.max(nnz_inds[1])
     old_im = old_im.crop((x_min, y_min, x_max + 1, y_max + 1))
-    old_im.save(output_path)
+    return old_im
+    # old_im.save(output_path)
 
 
 def make_fix_size(numpy_image, RESIZE_W, RESIZE_H, random_resize: bool, alpha: bool = False):

@@ -17,11 +17,23 @@ class PatchEmbedding(nn.Module):
                 nn.LazyConv2d(emb_size, kernel_size=patch_size, stride=patch_size),
                 Rearrange('b e (h) (w) -> b (h w) e'),
             )
+            self.linear = nn.LazyLinear(emb_size)
             self.cls_token = nn.Parameter(torch.randn(1,1, emb_size))
             self.positions = nn.Parameter(torch.randn((img_H // patch_size) * (img_W // patch_size) + 1, emb_size))
 
         def forward(self, x):
-            b, _, _, _ = x.shape
+            b, c, h, w = x.shape
+            
+            # patches = []
+            # for h_p in range(0, h, self.patch_size):
+            #     for w_p in range(0, w, self.patch_size):
+            #         patches.append(x[:, :, h_p: h_p + self.patch_size, w_p: w_p + self.patch_size])
+            # patches = torch.stack(patches)
+            # p, b, c, _, _ = patches.shape
+            
+            # x = patches.view(b, p, c * self.patch_size * self.patch_size)
+            # x = self.linear(x)
+            
             x = self.projection(x)
             cls_tokens = repeat(self.cls_token, '() n e -> b n e', b=b)
             # prepend the cls token to the input
@@ -96,7 +108,7 @@ class Seq2SeqTransformerVIT(nn.Module):
         for pred, trgt in zip(logits, trg_true):
             loss += torch.sum(self.criterion(pred, trgt))
         
-        return loss / torch.sum(~(trg_true == 0))
+        return loss / torch.sum(~(trg_true == 0)), logits
         
 
     def encode(self, src: Tensor, src_mask: Tensor):

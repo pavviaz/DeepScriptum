@@ -14,6 +14,8 @@ def log_init(path, name, mode, verbose=True):
         Logger: logger object
     """
     logger = logging.getLogger(__name__)
+    logger.handlers.clear()
+    
     logger.setLevel(logging.INFO)
     logger.disabled = True
 

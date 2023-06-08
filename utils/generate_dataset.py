@@ -8,10 +8,19 @@ from datetime import datetime
 import re
 from convert_rgba_to_rgb import generate
 
+DOWNLOAD_THREADS = 20
+# DATASET_DIR = "C:/users/shace/documents/github/im2latex/datasets/images_150_ng"
+# RGB_DATASET_DIR = "C:/users/shace/documents/github/im2latex/datasets/images_150_ng_rgb"
+# LABEL_PATH = "C:/users/shace/documents/github/im2latex/dataset_NG.json"
 
-DATASET_DIR = "C:/users/shace/documents/github/im2latex/datasets/images_150_ng"
-RGB_DATASET_DIR = "C:/users/shace/documents/github/im2latex/datasets/images_150_ng_rgb"
-LABEL_PATH = "C:/users/shace/documents/github/im2latex/dataset_NG.json"
+# DATASET_DIR = "C:/users/shace/documents/github/im2latex/datasets/images_150_regenerated"
+# RGB_DATASET_DIR = "C:/users/shace/documents/github/im2latex/datasets/images_150_regenerated_rgb"
+# LABEL_PATH = "C:/users/shace/documents/github/im2latex/5_dataset_large.json"
+
+DATASET_DIR = "C:/users/shace/documents/github/im2latex/datasets/images_150_test"
+RGB_DATASET_DIR = "C:/users/shace/documents/github/im2latex/datasets/images_150_test_rgb"
+LABEL_PATH = "C:/users/shace/documents/github/im2latex/test_dataset.json"
+
 
 TEX_F = \
 "\\documentclass[\n  9pt,\n  convert={\n    density=175,\n    outext=.png\n  },\n]{standalone}\n\\usepackage{amsfonts,amsmath,amssymb,mathrsfs,braket,mathtools}\n\\begin{document}\n"
@@ -37,9 +46,8 @@ def preprocess_and_save(dct, start, end):
 
 
 def main(dataset):
-    download_threads = 20
     threads = [multiprocessing.Process(target=preprocess_and_save, args=(dataset, arg[0], arg[1])) for arg in
-            compute_threads_work(len(dataset), download_threads)]
+            compute_threads_work(len(dataset), DOWNLOAD_THREADS)]
     for t in threads:
         t.start()
     for t in threads:

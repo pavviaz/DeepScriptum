@@ -35,4 +35,4 @@ def generate(img, output_path):
 
 
 if __name__ == "__main__":
-    generate("C:\\Users\\shace\\Desktop\\tex2png\\безназвания-1.png", "d.png")
+    generate("C:\\Users\\shace\\Desktop\\tex2png\\безназвания-1.png", "t.png")

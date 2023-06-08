@@ -1148,6 +1148,9 @@ class Prediction:
         ckpt = tf.train.Checkpoint(encoder=encoder,
                                    decoder=decoder,
                                    optimizer=optimizer)
+        
+        decoder.summary()
+        
         ckpt_manager = tf.train.CheckpointManager(
             ckpt, checkpoint_path, max_to_keep=5)
         if ckpt_manager.latest_checkpoint:
@@ -1387,7 +1390,7 @@ van = Image2Latex("model_latex_x25")
 # van.calulate_bleu_metric("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\formula_images_png_5_large_resized\\",
 #                       "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json")
 
-van.train()
+# van.train()
 
 # van.random_predict("C:\\Users\\shace\\Documents\\GitHub\\im2latex\\datasets\\images_150\\",
 #                    "C:\\Users\\shace\\Documents\\GitHub\\im2latex\\5_dataset_large.json", 5)
