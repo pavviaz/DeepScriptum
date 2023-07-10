@@ -9,55 +9,100 @@ from models.torch.token_embedding import TokenEmbedding
 
 
 class PatchEmbedding(nn.Module):
-        def __init__(self, img_H: int, img_W: int, patch_size: int = 16, emb_size: int = 512):
-            self.patch_size = patch_size
-            super().__init__()
-            self.projection = nn.Sequential(
-                # using a conv layer instead of a linear one -> performance gains
-                nn.LazyConv2d(emb_size, kernel_size=patch_size, stride=patch_size),
-                Rearrange('b e (h) (w) -> b (h w) e'),
-            )
-            self.linear = nn.LazyLinear(emb_size)
-            self.cls_token = nn.Parameter(torch.randn(1,1, emb_size))
-            self.positions = nn.Parameter(torch.randn((img_H // patch_size) * (img_W // patch_size) + 1, emb_size))
+    def __init__(self, img_H: int, img_W: int, patch_size: int = 16, emb_size: int = 512):
+        self.patch_size = patch_size
+        super().__init__()
+        self.projection = nn.Sequential(
+            # using a conv layer instead of a linear one -> performance gains
+            nn.LazyConv2d(emb_size, kernel_size=patch_size, stride=patch_size),
+            Rearrange('b e (h) (w) -> b (h w) e'),
+        )
+        self.linear = nn.LazyLinear(emb_size)
+        self.cls_token = nn.Parameter(torch.randn(1,1, emb_size))
+        self.positions = nn.Parameter(torch.randn((img_H // patch_size) * (img_W // patch_size) + 1, emb_size))
 
-        def forward(self, x):
-            b, c, h, w = x.shape
-            
-            # patches = []
-            # for h_p in range(0, h, self.patch_size):
-            #     for w_p in range(0, w, self.patch_size):
-            #         patches.append(x[:, :, h_p: h_p + self.patch_size, w_p: w_p + self.patch_size])
-            # patches = torch.stack(patches)
-            # p, b, c, _, _ = patches.shape
-            
-            # x = patches.view(b, p, c * self.patch_size * self.patch_size)
-            # x = self.linear(x)
-            
-            x = self.projection(x)
-            cls_tokens = repeat(self.cls_token, '() n e -> b n e', b=b)
-            # prepend the cls token to the input
-            x = torch.cat([cls_tokens, x], dim=1)
-            # add position embedding
-            x += self.positions
-            return x
+    def forward(self, x):
+        b, c, h, w = x.shape
+        
+        # patches = []
+        # for h_p in range(0, h, self.patch_size):
+        #     for w_p in range(0, w, self.patch_size):
+        #         patches.append(x[:, :, h_p: h_p + self.patch_size, w_p: w_p + self.patch_size])
+        # patches = torch.stack(patches)
+        # p, b, c, _, _ = patches.shape
+        
+        # x = patches.view(b, p, c * self.patch_size * self.patch_size)
+        # x = self.linear(x)
+        
+        x = self.projection(x)
+        cls_tokens = repeat(self.cls_token, '() n e -> b n e', b=b)
+        # prepend the cls token to the input
+        x = torch.cat([cls_tokens, x], dim=1)
+        # add position embedding
+        x += self.positions
+        return x
 
 
 class ViT(nn.Module):
-        def __init__(self, img_H: int, img_W: int, nhead=8, patch_size: int = 16, emb_size: int = 512, depth=6):
-            super().__init__()
-            self.embedding = PatchEmbedding(img_H, img_W, patch_size, emb_size)
-            self.encoder = torch.nn.TransformerEncoder(nn.TransformerEncoderLayer(emb_size,
-                                                      nhead=nhead,
-                                                      activation='gelu',
-                                                      batch_first=True,
-                                                      norm_first=True), depth)
+    def __init__(self, img_H: int, img_W: int, nhead=8, patch_size: int = 16, emb_size: int = 512, depth=6):
+        super().__init__()
+        self.embedding = PatchEmbedding(img_H, img_W, patch_size, emb_size)
+        self.encoder = torch.nn.TransformerEncoder(nn.TransformerEncoderLayer(emb_size,
+                                                  nhead=nhead,
+                                                  activation='gelu',
+                                                  batch_first=True,
+                                                  norm_first=True), depth)
+    
+    def forward(self, x):
+        x = self.embedding(x)
+        x = self.encoder(x)
         
-        def forward(self, x):
-            x = self.embedding(x)
-            x = self.encoder(x)
-            
-            return x
+        return x
+
+
+class PatchEmbedding_new(nn.Module):
+    def __init__(self, img_H: int, img_W: int, patch_size: int = 16, emb_size: int = 768):
+        self.patch_size = patch_size
+        super().__init__()
+        self.to_patch_embedding = nn.Sequential(
+            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+            nn.LazyLinear(emb_size),
+        )
+        
+        num_patches = (img_H // patch_size) * (img_W // patch_size)
+        
+        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, emb_size))
+        # self.cls_token = nn.Parameter(torch.randn(1, 1, emb_size))
+        self.dropout = nn.Dropout(0.1)
+
+    def forward(self, x):
+        x = self.to_patch_embedding(x)
+        b, n, _ = x.shape
+
+        # cls_tokens = repeat(self.cls_token, '1 1 d -> b 1 d', b = b)
+        # x = torch.cat((cls_tokens, x), dim=1)
+        # x += self.pos_embedding[:, :(n + 1)]
+        x += self.pos_embedding[:, :n]
+        x = self.dropout(x)
+        return x
+        
+        
+class ViT_new(nn.Module):
+    def __init__(self, img_H: int, img_W: int, patch_size: int = 16, emb_size: int = 768, nhead = 8, depth = 6):
+        super().__init__()
+        self.embedding = PatchEmbedding_new(img_H, img_W, patch_size, emb_size)
+        self.encoder = torch.nn.TransformerEncoder(nn.TransformerEncoderLayer(emb_size,
+                                                  nhead=nhead,
+                                                  activation='gelu',
+                                                  batch_first=True,
+                                                  norm_first=False), depth)
+        
+    
+    def forward(self, x):
+        x = self.embedding(x)
+        x = self.encoder(x)
+
+        return x
 
 
 class Seq2SeqTransformerVIT(nn.Module):
@@ -77,7 +122,8 @@ class Seq2SeqTransformerVIT(nn.Module):
         self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, emb_size)
         self.positional_encoding = PositionalEncoding(
             emb_size, dropout=dropout)
-        self.vit_encoder = ViT(img_H=img_H, img_W=img_W, nhead=nhead, depth=num_encoder_layers, emb_size=emb_size)
+        # self.vit_encoder = ViT(img_H=img_H, img_W=img_W, nhead=nhead, depth=num_encoder_layers, emb_size=emb_size)
+        self.vit_encoder = ViT_new(img_H=img_H, img_W=img_W, nhead=nhead, depth=num_encoder_layers, emb_size=emb_size)
         self.decoder = nn.TransformerDecoder(nn.TransformerDecoderLayer(d_model=emb_size,
                                                       nhead=nhead,
                                                       dim_feedforward=dim_feedforward,

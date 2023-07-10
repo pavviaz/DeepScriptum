@@ -34,11 +34,12 @@ v_losses = v_losses[:EPOCH_LIM]
 
 x = [el for el in range(len(losses))]
 
-plt.plot(x, losses, label="train")
-plt.plot(x, v_losses, label="validation")
-plt.legend()
+plt.rcParams['legend.title_fontsize'] = 'large'
+plt.plot(x, losses, label="Обучающая выборка", linewidth=3.0)
+plt.plot(x, v_losses, label="Валидационная выборка", linewidth=3.0)
+plt.legend(prop={'size': 15})
 
-plt.xlabel("Epoches", fontsize=18)
-plt.ylabel("Loss Value", fontsize=18)
+plt.xlabel("Эпохи", fontsize=18)
+plt.ylabel("Значение ошибки", fontsize=18)
 
 plt.show()

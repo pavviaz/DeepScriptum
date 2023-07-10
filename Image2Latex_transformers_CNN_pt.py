@@ -30,7 +30,7 @@ from utils.device_def import enable_gpu
 from utils.logger_init import log_init
 from utils.images_preprocessing import make_fix_size
 from utils.checkpointing import Checkpointing
-from utils.metrics import bleu_score, levenshteinDistance
+from utils.metrics import levenshteinDistance
 from rouge_score import rouge_scorer
 from nltk.translate import bleu_score
 
@@ -329,14 +329,14 @@ class Training:
         #     print(cap)
         criterion = nn.CrossEntropyLoss(ignore_index=0, reduction='none')
             
-        model = Seq2SeqTransformer(num_encoder_layers=self.params.num_encoder_layers, 
-                                   num_decoder_layers=self.params.num_decoder_layers, 
-                                   emb_size=self.params.embedding_dim,
-                                   nhead=self.params.nhead,
-                                   tgt_vocab_size=self.params.vocab_size,
-                                   criterion=criterion,
-                                   dim_feedforward=self.params.ff_dim,
-                                   device=self.device)
+        # model = Seq2SeqTransformer(num_encoder_layers=self.params.num_encoder_layers, 
+        #                            num_decoder_layers=self.params.num_decoder_layers, 
+        #                            emb_size=self.params.embedding_dim,
+        #                            nhead=self.params.nhead,
+        #                            tgt_vocab_size=self.params.vocab_size,
+        #                            criterion=criterion,
+        #                            dim_feedforward=self.params.ff_dim,
+        #                            device=self.device)
         
         # model = Seq2SeqTransformerDecOnly(num_decoder_layers=self.params.num_decoder_layers, 
         #                                   emb_size=self.params.embedding_dim,
@@ -346,18 +346,18 @@ class Training:
         #                                   dim_feedforward=self.params.ff_dim,
         #                                   device=self.device)
         
-        # model = Seq2SeqTransformerVIT(num_encoder_layers=self.params.num_encoder_layers, 
-        #                               num_decoder_layers=self.params.num_decoder_layers, 
-        #                               emb_size=self.params.embedding_dim,
-        #                               nhead=self.params.nhead,
-        #                               img_H=self.params.image_size[0],
-        #                               img_W=self.params.image_size[1],
-        #                               tgt_vocab_size=self.params.vocab_size,
-        #                               criterion=criterion,
-        #                               dim_feedforward=self.params.ff_dim,
-        #                               device=self.device).to(self.device)
+        model = Seq2SeqTransformerVIT(num_encoder_layers=self.params.num_encoder_layers, 
+                                      num_decoder_layers=self.params.num_decoder_layers, 
+                                      emb_size=self.params.embedding_dim,
+                                      nhead=self.params.nhead,
+                                      img_H=self.params.image_size[0],
+                                      img_W=self.params.image_size[1],
+                                      tgt_vocab_size=self.params.vocab_size,
+                                      criterion=criterion,
+                                      dim_feedforward=self.params.ff_dim,
+                                      device=self.device).to(self.device)
                 
-        optimizer = torch.optim.Adam(model.parameters())
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
         
         self.start_ckpt_id = 0
         ckpt = Checkpointing(self.params.checkpoint_path,
@@ -572,7 +572,7 @@ class Image2Latex_load:
 
             self.loaded = True
             self.dataset_path = os.path.abspath(".") + "\\datasets\\" + self.dataset_path
-            self.caption_path = os.path.abspath(".") + "\\" + self.c_p
+            self.caption_path = os.path.abspath(".") + "\\datasets\\" + self.c_p
 
             train = Training(device=self.device,
                              model_path=self.model_path,
@@ -866,16 +866,16 @@ class Image2Latex_load:
      
      
 if __name__ == "__main__":
-    device = enable_gpu(False)
+    device = enable_gpu(True)
 
     # van = Image2Latex_load("torch_transformers_11_combined_pos_emb_RESNET_XXL", device=device)
     # van.random_predict(decoder_type="greedy", number=5)
     
     # van = Image2Latex_load("torch_transformers_12_VIT_0.1_of_default_lr", device=device)  
     # van = Image2Latex_load("torch_transformers_16", device=device)
-    van = Image2Latex_load("torch_transformers_16_v2", device=device)
+    van = Image2Latex_load("torch_transformers_17_vit", device=device)
 
-    # van.train()
+    van.train()
     # van.train_from_ckpt()
     # van.testing(val_dataset="C:/Users/shace/Documents/GitHub/im2latex/datasets/images_150_test_rgb", labels="C:/Users/shace/Documents/GitHub/im2latex/test_dataset.json")
-    van.random_predict(decoder_type="greedy", number=5)
+    # van.random_predict(decoder_type="greedy", number=5)
