@@ -873,7 +873,7 @@ if __name__ == "__main__":
     
     # van = Image2Latex_load("torch_transformers_12_VIT_0.1_of_default_lr", device=device)  
     # van = Image2Latex_load("torch_transformers_16", device=device)
-    van = Image2Latex_load("torch_transformers_17_vit", device=device)
+    van = Image2Latex_load("torch_transformers_16_v3", device=device)
 
     van.train()
     # van.train_from_ckpt()

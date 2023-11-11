@@ -367,3 +367,4 @@ Flicker8k_Dataset
 etc/
 convert_video_to_audio/
 gui/model/weights
+experiments/
