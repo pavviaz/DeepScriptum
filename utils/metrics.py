@@ -24,7 +24,7 @@ if __name__ == "__main__":
     # machine_translated = "\\alpha N _ { f } = \\alpha ( \\sum _ { I = 1 } ^ { 9 } v _ { I } \\gamma _ { I } + \\sum _ { i = 1 } ^ { 3 } \\frac { i \\mu x ^ { i } } { 4 } \\{ \\gamma _ { i } , \\gamma _ { 1 2 3 } \\} ) + \\alpha ^ { 2 } \\mu ^ { 2 } / 4 ^ { 2 }"
     machine_translated = "\\alpha N _ { f } = \\alpha ( \\sum _ { l = 1 } ^ { 9 } v _ { I } \\gamma _ { J } + \\sum _ { i = 1 } ^ { 3 } \\frac { i \\mu x ^ { i } } { 4 } \\{ \\gamma _ { i } , \\gamma _ { l 2 3 } \\} ) + \\alpha ^ { 2 } \\mu ^ { 2 } / 4 ^ { 2 }"
 
-    scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2'], use_stemmer=True)
+    scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rouge4'], use_stemmer=True)
     print(nltk.translate.bleu(references=[original.split()], hypothesis=machine_translated.split()))
     print(levenshteinDistance(original, machine_translated))
     score = scorer.score(original, machine_translated)["rouge1"][-1]
