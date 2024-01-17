@@ -369,3 +369,4 @@ etc/
 convert_video_to_audio/
 gui/model/weights
 experiments/
+training_data/

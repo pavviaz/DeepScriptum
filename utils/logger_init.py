@@ -15,7 +15,7 @@ def log_init(path, name, mode, verbose=True):
     """
     logger = logging.getLogger(__name__)
     logger.handlers.clear()
-    
+
     logger.setLevel(logging.INFO)
     logger.disabled = True
 
@@ -32,5 +32,5 @@ def log_init(path, name, mode, verbose=True):
 
         logger.addHandler(file_handler)
         logger.addHandler(stream_handler)
-        
+
     return logger
