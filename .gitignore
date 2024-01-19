@@ -352,21 +352,6 @@ MigrationBackup/
 # Other
 .vscode/
 *venv*/
-experiments/
-trained_models/
-trained_models_rnn_pt/
-trained_models_transformers/
-trained_models_transformers_CNN_2/
-trained_models_transformers_pt/
-trained_models_transformers_ViT/
-trained_models_transformer_handwritten_pt/
-datasets/
-dataset/
-trained_model
-deprecated
-Flicker8k_Dataset
-etc/
-convert_video_to_audio/
-gui/model/weights
-experiments/
+
 training_data/
+tests/

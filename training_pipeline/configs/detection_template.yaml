@@ -1,0 +1,72 @@
+general:
+  model_name: "detection_model"
+  # description: "very cool model"
+
+  seed: 1234
+
+  device: "cuda"
+
+  # COCO format
+  dataset_cfg_path: "C:/dataset_path/cfg.yaml"
+
+  export_path: "C:/export_path"
+
+
+# choose either this
+yolo:
+  model: "yolov8m.pt"
+  epochs: 50
+  batch: 8
+  imgsz: 1025
+  cache: False
+  workers: 4
+  verbose: True
+  resume: False
+  pretrained: False
+  fraction: 1.0
+
+  time: 
+  patience: 50
+  exist_ok: False
+  optimizer: "auto"
+  deterministic: True
+  single_cls: False
+  rect: False
+  cos_lr: False
+  close_mosaic: 10
+  amp: True
+  profile: False
+  freeze: 
+  lr0: 0.01
+  lrf: 0.01
+  momentum: 0.937
+  weight_decay: 0.0005
+  warmup_epochs: 3.0
+  warmup_momentum: 0.8
+  warmup_bias_lr: 0.1
+  box: 7.5
+  cls: 0.5
+  dfl: 1.5
+  pose: 12.0
+  kobj: 2.0
+  label_smoothing: 0.0
+  nbs: 64
+  overlap_mask: True
+  mask_ratio: 4
+  dropout: 0.0
+  val: True
+
+
+# or this
+detectron:
+  model: "COCO-Detection/retinanet_R_101_FPN_3x.yaml"
+  epochs: 50
+  batch: 4
+
+  lr: 0.00025
+  iterations: 150000
+  ckpt_period: 5000
+
+  workers: 4
+  max_to_keep: 15
+  batch_per_img: 128
