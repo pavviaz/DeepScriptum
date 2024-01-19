@@ -1,9 +1,9 @@
 import torch
 from torch import nn
 from torch import Tensor
-from models.torch.cnn_encoder import Encoder
-from models.torch.positional_embedding import PositionalEncoding
-from models.torch.token_embedding import TokenEmbedding
+from .cnn_encoder import Encoder
+from .positional_embedding import PositionalEncoding
+from .token_embedding import TokenEmbedding
 
 
 class Seq2SeqTransformerDecOnly(nn.Module):
