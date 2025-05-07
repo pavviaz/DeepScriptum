@@ -1,0 +1,108 @@
+general:
+  project_name: "DeepScriptum"
+  task_name: "trocr_finetune"
+
+  description: "Training seq2seq nougat-like model (pretrained SWIN + mBART) on exp250k-llm-success-100k"
+  seed: 137
+
+  ckpt_monitor_metric: WER
+  upload_ckpt: True
+  
+
+training:
+  model_to_use: "VEDmodel"
+  datamodule: "arxiv_onepage_ved"
+
+  datasets:
+    train_datasets:
+      paths:
+        exp250k_llm_success_100k:
+          path: /Users/pavelvyaznikov/Downloads/arxiv_dataset_exp250k-llm-1k.json
+
+      default_preprocessor:
+        name: "arxiv_onepage"
+        params:
+          markdown_text_similarity_threshold: 0.95
+          target_image_size: [896, 672]  # H, W
+          normalize_img_coords: True
+
+      loader_params:
+        num_workers: 1
+        batch_size: 1
+        pin_memory: True
+        persistent_workers: True
+        shuffle: True
+        drop_last: False
+
+    test_datasets:
+      paths:
+        exp250k_llm_success_100k:
+          path: /Users/pavelvyaznikov/Downloads/arxiv_dataset_exp250k-llm-1k.json
+
+      default_preprocessor:
+        name: "arxiv_onepage"
+        params:
+          markdown_text_similarity_threshold: 0.95
+          target_image_size: [896, 672]  # H, W
+          normalize_img_coords: True
+
+      combine_tests:
+        everything:
+          - sb_part1
+        part_1:
+          - sb_part1
+
+      loader_params:
+        num_workers: 1
+        batch_size: 1
+        pin_memory: False
+        persistent_workers: False
+        shuffle: False
+        drop_last: False
+
+  max_epochs: 100
+  early_stopping_patience: 15
+  devices: [0]
+
+  optimizer:
+    type: "adamw"
+    params:
+      lr: !!float 1e-05
+      weight_decay: 0.01
+      betas:
+      - 0.9
+      - 0.999
+      eps: !!float 1e-08
+      amsgrad: True
+    
+    # optional
+    scheduler_params:
+      type: "cosine"
+      num_warmup_steps: 500
+      # optional
+      # kwargs:
+      #   num_cycles: 10
+
+  # upload  
+  metadata:
+    data_version: "v2label_v1"
+
+
+datamodules_params:
+  arxiv_onepage_ved:
+    encoder_model: "microsoft/swin-base-patch4-window12-384"
+    decoder_model: "facebook/mbart-large-50"
+
+    target_image_size: [896, 672]
+    max_length: 4096
+
+    train_val_split: 0.95
+
+
+models_params:
+  VEDmodel:
+    encoder_model: "microsoft/swin-base-patch4-window12-384"
+    decoder_model: "facebook/mbart-large-50"
+
+    target_image_size: [896, 672]
+    max_length: 4096

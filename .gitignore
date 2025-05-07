@@ -357,3 +357,6 @@ training_data/
 trained_weights/
 tests/
 tmp/
+eda/
+ckpts/
+.env

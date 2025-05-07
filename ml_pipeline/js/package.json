@@ -1,0 +1,11 @@
+{
+    "name": "markdown-validator",
+    "version": "1.0.0",
+    "description": "Validates markdown rendering",
+    "main": "validate_md.js",
+    "private": true,
+    "dependencies": {
+      "@vscode/markdown-it-katex": "^1.1.1",
+      "markdown-it": "^14.1.0"
+    }
+}
