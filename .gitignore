@@ -359,4 +359,7 @@ tests/
 tmp/
 eda/
 ckpts/
+processed_data/
+processed_data_2/
+processed_data_test/
 .env

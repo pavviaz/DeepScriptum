@@ -40,9 +40,7 @@ class BaseModel(LightningModule, ABC):
                 log_obj=self.log_obj,
             )
         )
-        self.log_obj.info(
-            f"Model setup complete. Monitoring: {self.metric_name}"
-        )
+        self.log_obj.info(f"Model setup complete. Monitoring: {self.metric_name}")
 
     @abstractmethod
     def _model_init(self):
@@ -119,9 +117,7 @@ class BaseModel(LightningModule, ABC):
                 self.ckpt_monitor_metric_name.upper()
             )
             if metric_val_for_ckpt is not None:
-                self.log(
-                    self.metric_name, metric_val_for_ckpt, sync_dist=True
-                )
+                self.log(self.metric_name, metric_val_for_ckpt, sync_dist=True)
             else:
                 self.log_obj.info(
                     f"Warning: Checkpoint metric '{self.ckpt_monitor_metric_name.upper()}' not found in val results. Available: {list(final_metrics_to_log.keys())}"
@@ -268,60 +264,33 @@ class BaseModel(LightningModule, ABC):
             "scheduler_params" in self.optimizer_params_config
             and self.optimizer_params_config.scheduler_params
         ):
-            sch_cfg = self.optimizer_params_config.scheduler_params
+            sch_params = self.optimizer_params_config.scheduler_params
 
-            num_training_steps = 0
-            effective_max_epochs = (
-                self.trainer.max_epochs
-                if self.trainer.max_epochs is not None and self.trainer.max_epochs != -1
-                else 1
-            )
+            num_warmup_steps = 0
+            if "num_warmup_steps" in sch_params and sch_params.num_warmup_steps:
+                num_warmup_steps = sch_params.num_warmup_steps
 
-            if self.trainer.max_steps and self.trainer.max_steps != -1:
-                num_training_steps = self.trainer.max_steps
-            elif (
-                hasattr(self.trainer.datamodule, "train_dataloader")
-                and self.trainer.datamodule.train_dataloader() is not None
-            ):
-                try:
-                    len_train_loader = len(self.trainer.datamodule.train_dataloader())
-                    num_training_steps = (
-                        len_train_loader // self.trainer.accumulate_grad_batches
-                    ) * effective_max_epochs
-                except (
-                    TypeError,
-                    AttributeError,
-                ) as e:
-                    self.log_obj.info(
-                        f"Could not determine train_loader length for scheduler: {e}. Relying on config."
-                    )
-                    num_training_steps = sch_cfg.get("num_training_steps")
-
-            if num_training_steps == 0:
-                num_training_steps = sch_cfg.get("num_training_steps")
-                if num_training_steps is None or num_training_steps == 0:
-                    self.log_obj.invoke_exception(
-                        "num_training_steps for scheduler could not be determined and is not set in config or is zero.",
-                        ValueError,
-                        self.task_clearml_obj,
-                    )
-
-            num_warmup_steps = sch_cfg.get("num_warmup_steps", 0)
-            if isinstance(num_warmup_steps, float) and 0 < num_warmup_steps < 1:
-                num_warmup_steps = int(num_warmup_steps * num_training_steps)
+            if "num_training_steps" in sch_params and sch_params.num_training_steps:
+                num_training_steps = sch_params.num_training_steps
+            else:
+                num_training_steps = (
+                    len(self.trainer.datamodule.train_loader) * self.trainer.max_epochs
+                )
 
             scheduler = get_scheduler(
-                name=sch_cfg.type,
+                sch_params.type,
                 optimizer=optimizer,
                 num_warmup_steps=num_warmup_steps,
                 num_training_steps=num_training_steps,
+                scheduler_specific_kwargs=sch_params.get("kwargs", {}),
             )
+
             return {
                 "optimizer": optimizer,
                 "lr_scheduler": {
                     "scheduler": scheduler,
-                    "interval": sch_cfg.get("interval", "step"),
-                    "frequency": sch_cfg.get("frequency", 1),
+                    "interval": "step",
+                    "frequency": 1,
                 },
             }
         return optimizer

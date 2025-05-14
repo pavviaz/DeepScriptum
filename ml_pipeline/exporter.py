@@ -9,7 +9,7 @@ from sklearn.metrics import classification_report
 
 
 class Exporter:
-    def __init__(self, config_path: str, device="cuda:0"):
+    def __init__(self, config_path: str, device="cpu"):
         from meta_dicts import MODELS, DATAMODULES
         
         """
@@ -59,12 +59,10 @@ class Exporter:
             .load_from_checkpoint(
                 self.local_path,
                 model_params=self.init_config.models_params[m.name],
-                loss_params=self.init_config.training.loss_func,
                 optimizer_params=self.init_config.training.optimizer,
                 log_obj=None,
                 task=None,
                 ckpt_monitor_metric=self.init_config.general.ckpt_monitor_metric,
-                classes_map=self.init_config.training.datasets.classes_map,
             )
         )
 

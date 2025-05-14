@@ -11,7 +11,7 @@ from ml_pipeline.logger import TrainingLogger
 from .base_model import BaseModel
 
 
-class VEDModel(BaseModel):
+class VEDDuoModel(BaseModel):
     def __init__(
         self,
         model_params,
@@ -37,6 +37,7 @@ class VEDModel(BaseModel):
         if "mbart" in model_type:
             position_embeddings = model.model.decoder.embed_positions
             config_key = "max_position_embeddings"
+            offset = 2  # mBART offset
         elif "gpt" in model_type:
             position_embeddings = model.transformer.wpe
             config_key = (
@@ -44,20 +45,20 @@ class VEDModel(BaseModel):
                 if hasattr(model.config, "n_positions")
                 else "max_position_embeddings"
             )
-        elif "t5" in model_type:
-            return
+            offset = 0
+        elif "roberta" in model_type:
+            position_embeddings = model.roberta.embeddings.position_embeddings
+            config_key = "max_position_embeddings"
+            offset = 2  # RoBERTa uses 0 for <s>, 1 for <pad>, so 514 covers 512 tokens
         else:
-            raise ValueError(
-                "Unsupported model type. Only mBART and GPT-like models are supported."
-            )
+            raise ValueError("Unsupported model type.")
 
-        # Get the class of the current position embeddings
         embedding_class = type(position_embeddings)
         hidden_size = position_embeddings.weight.shape[1]
+        new_embedding_size = new_max_length + offset
 
-        # Create a new instance of the same class with the new max length
-        new_position_embeddings = embedding_class(new_max_length, hidden_size)
-        new_embedding_size = new_position_embeddings.weight.shape[0]
+        # Create new instance of the same embedding class
+        new_position_embeddings = embedding_class(new_embedding_size, hidden_size)
         old_embedding_size = position_embeddings.weight.shape[0]
 
         if new_embedding_size == old_embedding_size:
@@ -66,7 +67,7 @@ class VEDModel(BaseModel):
             )
             return
 
-        # Resize the old embeddings to match the new size
+        # Resize embeddings
         old_embeddings = position_embeddings.weight
         if new_embedding_size < old_embedding_size:
             new_embeddings = old_embeddings[:new_embedding_size, :]
@@ -77,17 +78,17 @@ class VEDModel(BaseModel):
             )
             new_embeddings = new_embeddings.squeeze(0).T
 
-        # Update the new embeddings' weights
         with torch.no_grad():
             new_position_embeddings.weight.copy_(new_embeddings)
 
-        # Replace the old position embeddings
+        # Update model
         if "mbart" in model_type:
             model.model.decoder.embed_positions = new_position_embeddings
         elif "gpt" in model_type:
             model.transformer.wpe = new_position_embeddings
+        elif "roberta" in model_type:
+            model.roberta.embeddings.position_embeddings = new_position_embeddings
 
-        # Update the config with the intended max_length (not embedding size)
         setattr(model.config, config_key, new_max_length)
         print(
             f"Position embeddings resized from {old_embedding_size} to {new_embedding_size} "
@@ -95,7 +96,10 @@ class VEDModel(BaseModel):
         )
 
     def _model_init(self):
-        tokenizer = AutoTokenizer.from_pretrained(self.model_params.decoder_model)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_params.decoder_model)
+        if "gpt2" in self.model_params.decoder_model:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+
         self.model = VisionEncoderDecoderModel.from_encoder_decoder_pretrained(
             self.model_params.encoder_model, self.model_params.decoder_model
         )
@@ -103,29 +107,48 @@ class VEDModel(BaseModel):
             self.model.decoder, new_max_length=self.model_params.max_length
         )
 
-        if (
-            hasattr(self.model.config, "decoder_start_token_id")
-            and self.model.config.decoder_start_token_id is None
-        ):
-            if tokenizer.bos_token_id is not None:
-                self.model.config.decoder_start_token_id = tokenizer.bos_token_id
-            elif tokenizer.cls_token_id is not None:
-                self.model.config.decoder_start_token_id = tokenizer.cls_token_id
-            elif tokenizer.pad_token_id is not None:
-                self.model.config.decoder_start_token_id = tokenizer.pad_token_id
+        model_type = self.model.decoder.config.model_type.lower()
+        if "mbart" in model_type:
+            self.model.config.decoder_start_token_id = self.tokenizer.eos_token_id
+        elif "gpt" in model_type:
+            self.model.config.decoder_start_token_id = self.tokenizer.bos_token_id
+            self.model.config.eos_token_id = self.tokenizer.eos_token_id
+            self.model.config.pad_token_id = self.tokenizer.pad_token_id
+
+            self.model.decoder.config.bos_token_id = self.tokenizer.bos_token_id
+            self.model.decoder.config.eos_token_id = self.tokenizer.eos_token_id
+            self.model.decoder.config.pad_token_id = self.tokenizer.pad_token_id
+            # self.model.decoder.resize_token_embeddings(len(self.tokenizer))
+
+            self.model.config.max_length = self.model_params.max_length
+
+            self.model.config.early_stopping = True
+            self.model.config.no_repeat_ngram_size = 3
+            self.model.config.length_penalty = 2.0
+            # self.model.config.num_beams = 4
+        elif "roberta" in model_type:
+            self.model.config.decoder_start_token_id = self.tokenizer.cls_token_id
+            self.model.config.eos_token_id = self.tokenizer.sep_token_id
+            self.model.config.max_length = self.model_params.max_length
+
+            self.model.config.early_stopping = True
+            self.model.config.no_repeat_ngram_size = 3
+            self.model.config.length_penalty = 2.0
+            self.model.config.num_beams = 4
+        else:
+            raise ValueError
+
+        self.log_obj.info(
+            f"Set model.config.decoder_start_token_id to: {self.model.config.decoder_start_token_id}"
+        )
+
+        if self.tokenizer.pad_token_id is not None:
+            self.model.config.pad_token_id = self.tokenizer.pad_token_id
             self.log_obj.info(
-                f"Set model.config.decoder_start_token_id to: {self.model.config.decoder_start_token_id}"
+                f"Set model.config.pad_token_id to: {self.model.config.pad_token_id}"
             )
 
-        if (
-            hasattr(self.model.config, "pad_token_id")
-            and self.model.config.pad_token_id is None
-        ):
-            if tokenizer.pad_token_id is not None:
-                self.model.config.pad_token_id = tokenizer.pad_token_id
-                self.log_obj.info(
-                    f"Set model.config.pad_token_id to: {self.model.config.pad_token_id}"
-                )
+        self.model.config.vocab_size = self.tokenizer.vocab_size
 
         self.model.train()
 
@@ -133,13 +156,13 @@ class VEDModel(BaseModel):
         self,
         pixel_values: torch.Tensor,
         labels: torch.Tensor = None,
-        attention_mask: torch.Tensor = None,
+        # attention_mask: torch.Tensor = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         if labels is not None:
             outputs = self.model(
                 pixel_values=pixel_values,
                 labels=labels,
-                decoder_attention_mask=attention_mask,
+                # decoder_attention_mask=attention_mask,
             )
             return outputs.logits, outputs.loss
         else:
@@ -149,21 +172,28 @@ class VEDModel(BaseModel):
     def _training_step_logic(self, batch: dict) -> torch.Tensor:
         pixel_values = batch["pixel_values"]
         labels = batch["labels"]
-        attention_mask = batch["labels_attention_mask"]
+        # attention_mask = batch["labels_attention_mask"]
 
-        _, loss = self.forward(pixel_values, labels, attention_mask)
+        _, loss = self.forward(pixel_values, labels)
         return loss
 
     def _evaluation_step_logic(self, batch: dict) -> dict:
         pixel_values = batch["pixel_values"]
         labels = batch["labels"]
-        attention_mask = batch["labels_attention_mask"]
+        # attention_mask = batch["labels_attention_mask"]
 
-        _, loss = self.forward(pixel_values, labels, attention_mask)
+        _, loss = self.forward(pixel_values, labels)
 
         # Generate sequences
         generated_ids = self.model.generate(
-            pixel_values, max_length=self.model_params.max_length
+            pixel_values,
+            # max_length=self.model_params.max_length,
+            max_length=256,
+            eos_token_id=self.model.config.eos_token_id,
         )
 
-        return {"loss": loss, "generated_ids": generated_ids, "reference_ids": labels}
+        return {
+            "loss": loss,
+            "generated_ids": generated_ids,
+            "reference_ids": labels[:, :256],
+        }

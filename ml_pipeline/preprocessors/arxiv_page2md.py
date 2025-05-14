@@ -5,6 +5,8 @@ import io
 import re
 import html
 from typing import List, Dict, Any, Optional, Tuple
+from multiprocessing import Pool
+from functools import partial
 
 import orjson
 from PIL import Image, ImageOps
@@ -39,27 +41,20 @@ def resize_and_pad_image(
     img: Image.Image, target_w: int, target_h: int
 ) -> Tuple[Image.Image, float, float, int, int]:
     orig_w, orig_h = img.size
-
-    # Compute scale to fit within target_w x target_h while maintaining aspect ratio
     scale = min(target_w / orig_w, target_h / orig_h)
+
     new_w = int(orig_w * scale)
     new_h = int(orig_h * scale)
-
-    # Resize the image
     img_resized = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
-    # Compute padding (centered)
     pad_left = (target_w - new_w) // 2
     pad_top = (target_h - new_h) // 2
     pad_right = target_w - new_w - pad_left
     pad_bottom = target_h - new_h - pad_top
 
-    # Pad the image with black borders
     img_padded = ImageOps.expand(
         img_resized, (pad_left, pad_top, pad_right, pad_bottom), fill=0
     )
-
-    # Compute scale factors based on actual resized dimensions
     scale_w = new_w / orig_w
     scale_h = new_h / orig_h
 
@@ -86,8 +81,6 @@ def get_coords_string(
         return None
 
     l_orig, t_orig, r_orig, b_orig = coords
-
-    # Transform coordinates based on resizing and padding
     l_trans = l_orig * scale_w + pad_left
     t_trans = t_orig * scale_h + pad_top
     r_trans = r_orig * scale_w + pad_left
@@ -108,9 +101,9 @@ def get_coords_string(
             norm_r = norm_l + 1e-6
         if norm_t >= norm_b:
             norm_b = norm_t + 1e-6
+
         norm_r = min(1.0, norm_r)
         norm_b = min(1.0, norm_b)
-
         coord_str = (
             "["
             + f"{norm_l:.{COORD_PRECISION}f}, "
@@ -146,15 +139,13 @@ def process_markdown_images(
     image_pattern = re.compile(
         r"!\[.*?\]\(([^)]+\.(?:png|jpg|jpeg|gif|bmp|svg))\)", re.IGNORECASE
     )
-    matches = list(image_pattern.finditer(markdown_string))
 
+    matches = list(image_pattern.finditer(markdown_string))
     mentioned_image_pages = []
     replacements = {}
-
     for match in matches:
         image_filename = match.group(1)
         placeholder_full = match.group(0)
-
         if image_filename not in on_page_images:
             log_obj.info(
                 f"Image '{image_filename}' in MD on page {current_page_index} not found in metadata. Skipping page."
@@ -164,22 +155,19 @@ def process_markdown_images(
         img_info = on_page_images[image_filename]
         image_page = img_info.get("page")
         coords = img_info.get("coords")
-
         if image_page is None:
             log_obj.info(
                 f"Image '{image_filename}' metadata lacks 'page' info. Skipping page."
             )
             return None
-        image_page -= 1  # Adjust to match index
 
+        image_page -= 1
         mentioned_image_pages.append(image_page)
-
         if image_page != current_page_index:
             log_obj.info(
                 f"Image '{image_filename}' mentioned on page {current_page_index} belongs to page {image_page}. Skipping page."
             )
             return None
-
         if not coords or len(coords) != 4:
             log_obj.info(
                 f"Missing or invalid coords for image '{image_filename}' on page {current_page_index}. Coords: {coords}. Skipping page."
@@ -198,7 +186,6 @@ def process_markdown_images(
             log_obj=log_obj,
             img_info=img_info,
         )
-
         if coord_str is None:
             log_obj.info(
                 f"Failed to get coordinate string for image '{image_filename}' on page {current_page_index}. Skipping page."
@@ -230,6 +217,101 @@ def process_markdown_images(
     return processed_markdown
 
 
+def process_single_item(
+    item: Dict[str, Any],
+    target_image_size: Optional[Tuple[int, int]],
+    normalize_img_coords: bool,
+    markdown_text_similarity_threshold: float,
+    log_obj: Any,
+) -> Tuple[Optional[bytes], Optional[str], List[str]]:
+    """
+    Process a single item, returning the image as PNG bytes, processed markdown, and log messages.
+    """
+    log_messages = []
+
+    class LogObj:
+        def info(self, msg: str):
+            log_messages.append(msg)
+
+    log = LogObj()
+
+    doi = item.get("doi", "unknown_doi")
+    page_index = item.get("page_index", -1)
+    llm_markdown = item.get("llm_markdown")
+    xhtml_text = item.get("xhtml_text")
+    on_page_images = item.get("on_page_images", {})
+    page_screenshot_b64 = item.get("page_screenshot")
+    item_id = f"{doi}_{page_index}"
+
+    if not all([llm_markdown, xhtml_text, page_screenshot_b64, page_index != -1]):
+        log.info(f"Skipping item {item_id}: Missing essential field(s).")
+        return None, None, log_messages
+
+    pil_image = decode_image_from_base64(page_screenshot_b64)
+    if pil_image is None:
+        log.info(f"Skipping item {item_id}: Failed to decode page screenshot.")
+        return None, None, log_messages
+    original_width, original_height = pil_image.size
+
+    if target_image_size:
+        target_h, target_w = target_image_size
+        try:
+            final_pil_image, scale_w, scale_h, pad_left, pad_top = resize_and_pad_image(
+                pil_image, target_w, target_h
+            )
+            target_w, target_h = target_w, target_h
+        except Exception as e:
+            log.info(
+                f"Skipping item {item_id}: Failed to resize and pad image to {target_image_size}. Error: {e}"
+            )
+            return None, None, log_messages
+    else:
+        final_pil_image = pil_image
+        scale_w, scale_h = 1.0, 1.0
+        pad_left, pad_top = 0, 0
+        target_w, target_h = original_width, original_height
+
+    xhtml_plain_text = extract_text_from_xhtml(xhtml_text)
+    markdown_words = get_non_latex_words(llm_markdown)
+
+    if not xhtml_plain_text and markdown_words:
+        log.info(f"Skipping item {item_id}: XHTML text is empty but Markdown is not.")
+        return None, None, log_messages
+
+    if markdown_words and xhtml_plain_text:
+        found_words = sum(1 for word in markdown_words if word in xhtml_plain_text)
+        similarity_ratio = found_words / len(markdown_words)
+        if similarity_ratio < markdown_text_similarity_threshold:
+            log.info(f"Skipping item {item_id}: Low text similarity")
+            return None, None, log_messages
+    elif not markdown_words:
+        pass
+
+    processed_markdown = process_markdown_images(
+        llm_markdown,
+        on_page_images,
+        page_index,
+        scale_w,
+        scale_h,
+        pad_left,
+        pad_top,
+        target_w,
+        target_h,
+        normalize_img_coords,
+        log,
+    )
+
+    if processed_markdown is None:
+        return None, None, log_messages
+
+    # Convert PIL image to PNG bytes
+    img_byte_arr = io.BytesIO()
+    final_pil_image.save(img_byte_arr, format="PNG")
+    img_bytes = img_byte_arr.getvalue()
+
+    return img_bytes, processed_markdown, log_messages
+
+
 def preprocessor(
     path: str,
     log_obj: Any,
@@ -238,6 +320,7 @@ def preprocessor(
     markdown_text_similarity_threshold: float = 0.6,
     target_image_size: Optional[Tuple[int, int]] = None,
     normalize_img_coords: bool = True,
+    num_workers: int = 1,
 ) -> List[Tuple[Image.Image, str]]:
     processed_data = []
     original_count = 0
@@ -256,6 +339,10 @@ def preprocessor(
             _data = orjson.loads(json_data)
         original_count = len(_data)
         log_obj.info(f"Loaded {original_count} raw data points.")
+
+        if original_count > 1:
+            _data = _data["data"]
+
     except Exception as e:
         error_msg = f"Failed to load or parse JSON from '{path}': {e}"
         log_obj.invoke_exception(error_msg, type(e), task)
@@ -266,93 +353,54 @@ def preprocessor(
         _data = random.sample(_data, amount)
         original_count = amount
 
-    for item in tqdm(_data):
-        processed_item_count += 1
-        if processed_item_count % 100 == 0:
-            log_obj.info(
-                f"Attempted processing {processed_item_count}/{len(_data)} items..."
-            )
+    # Prepare worker function with fixed arguments
+    worker_func = partial(
+        process_single_item,
+        target_image_size=target_image_size,
+        normalize_img_coords=normalize_img_coords,
+        markdown_text_similarity_threshold=markdown_text_similarity_threshold,
+        log_obj=object(),  # Placeholder, actual logging handled in process_single_item
+    )
 
-        doi = item.get("doi", "unknown_doi")
-        page_index = item.get("page_index", -1)
-        llm_markdown = item.get("llm_markdown")
-        xhtml_text = item.get("xhtml_text")
-        on_page_images = item.get("on_page_images", {})
-        page_screenshot_b64 = item.get("page_screenshot")
-
-        item_id = f"{doi}_{page_index}"
-
-        if not all([llm_markdown, xhtml_text, page_screenshot_b64, page_index != -1]):
-            log_obj.info(f"Skipping item {item_id}: Missing essential field(s).")
-            discarded_count += 1
-            continue
-
-        pil_image = decode_image_from_base64(page_screenshot_b64)
-        if pil_image is None:
-            log_obj.info(f"Skipping item {item_id}: Failed to decode page screenshot.")
-            discarded_count += 1
-            continue
-        original_width, original_height = pil_image.size
-
-        # Handle image resizing and padding
-        if target_image_size:
-            target_h, target_w = target_image_size  # (height, width)
-            try:
-                final_pil_image, scale_w, scale_h, pad_left, pad_top = (
-                    resize_and_pad_image(pil_image, target_w, target_h)
-                )
-                target_w, target_h = target_w, target_h  # Use target dimensions
-            except Exception as e:
+    if num_workers <= 1:
+        # Sequential processing
+        for item in tqdm(_data, desc="Processing items"):
+            processed_item_count += 1
+            if processed_item_count % 100 == 0:
                 log_obj.info(
-                    f"Skipping item {item_id}: Failed to resize and pad image to {target_image_size}. Error: {e}"
+                    f"Attempted processing {processed_item_count}/{len(_data)} items..."
                 )
+            img_bytes, markdown, logs = worker_func(item)
+            for log_msg in logs:
+                log_obj.info(log_msg)
+            if img_bytes is not None and markdown is not None:
+                img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+                processed_data.append((img, markdown))
+            else:
                 discarded_count += 1
-                continue
-        else:
-            final_pil_image = pil_image
-            scale_w, scale_h = 1.0, 1.0
-            pad_left, pad_top = 0, 0
-            target_w, target_h = original_width, original_height
-
-        xhtml_plain_text = extract_text_from_xhtml(xhtml_text)
-        markdown_words = get_non_latex_words(llm_markdown)
-
-        if not xhtml_plain_text and markdown_words:
-            log_obj.info(
-                f"Skipping item {item_id}: XHTML text is empty but Markdown is not."
+    else:
+        # Multiprocessing
+        with Pool(processes=num_workers) as pool:
+            results = list(
+                tqdm(
+                    pool.imap_unordered(worker_func, _data),
+                    total=len(_data),
+                    desc="Processing items",
+                )
             )
-            discarded_count += 1
-            continue
-
-        if markdown_words and xhtml_plain_text:
-            found_words = sum(1 for word in markdown_words if word in xhtml_plain_text)
-            similarity_ratio = found_words / len(markdown_words)
-            if similarity_ratio < markdown_text_similarity_threshold:
-                log_obj.info(f"Skipping item {item_id}: Low text similarity")
+        for img_bytes, markdown, logs in results:
+            processed_item_count += 1
+            if processed_item_count % 100 == 0:
+                log_obj.info(
+                    f"Attempted processing {processed_item_count}/{len(_data)} items..."
+                )
+            for log_msg in logs:
+                log_obj.info(log_msg)
+            if img_bytes is not None and markdown is not None:
+                img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+                processed_data.append((img, markdown))
+            else:
                 discarded_count += 1
-                continue
-        elif not markdown_words:
-            pass
-
-        processed_markdown = process_markdown_images(
-            llm_markdown,
-            on_page_images,
-            page_index,
-            scale_w,
-            scale_h,
-            pad_left,
-            pad_top,
-            target_w,
-            target_h,
-            normalize_img_coords,
-            log_obj,
-        )
-
-        if processed_markdown is None:
-            discarded_count += 1
-            continue
-
-        processed_data.append((final_pil_image, processed_markdown))
 
     final_count = len(processed_data)
     log_obj.info(f"Preprocessing finished. Kept {final_count} items.")
@@ -370,6 +418,7 @@ def preprocessor(
 
 
 if __name__ == "__main__":
+
     class MockLogger:
         def info(self, text):
             print(text)
@@ -378,9 +427,10 @@ if __name__ == "__main__":
             print(text)
 
     preprocessor(
-        "/Users/pavelvyaznikov/Downloads/arxiv_dataset_exp250k-llm-1k.json",
+        "arxiv_dataset_exp250k-llm-1k.json",
         MockLogger(),
         None,
         markdown_text_similarity_threshold=0.95,
         target_image_size=(892, 768),
+        num_workers=16,
     )

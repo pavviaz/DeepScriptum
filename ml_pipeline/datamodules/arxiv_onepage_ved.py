@@ -1,19 +1,89 @@
 import os
+import base64
+import io
 from typing import List, Tuple, Dict, Any
 from collections import defaultdict
 
+import torch
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset, random_split
 from transformers import AutoTokenizer, AutoImageProcessor
 from PIL import Image
+import orjson
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
+# class VisionTextSeq2SeqDataset(Dataset):
+#     def __init__(
+#         self,
+#         data,
+#         image_processor: Any,
+#         tokenizer: Any,
+#         max_target_length: int,
+#     ):
+#         self.data = data
+#         self.image_processor = image_processor
+#         self.tokenizer = tokenizer
+#         self.max_target_length = max_target_length
+
+#         if self.tokenizer.pad_token_id is None:
+#             self.tokenizer.pad_token = self.tokenizer.eos_token
+
+#     def __len__(self):
+#         return len(self.data)
+
+#     def __getitem__(self, idx):
+#         pil_img, markdown_text = self.data[idx]
+
+#         image_inputs = self.image_processor(images=pil_img, return_tensors="pt")
+#         pixel_values = image_inputs.pixel_values.squeeze(0)
+
+#         tokenized_markdown = self.tokenizer(
+#             text=markdown_text,
+#             truncation=True,
+#             padding="max_length",
+#             max_length=self.max_target_length,
+#             return_tensors="pt",
+#             add_special_tokens=True,
+#         )
+#         labels = tokenized_markdown.input_ids.squeeze(0)
+
+#         # labels = tokenized_markdown.input_ids
+#         # attention_mask = tokenized_markdown.attention_mask
+
+#         # final_labels = []
+#         # final_mask = []
+#         # for seq_ids, mask_bits in zip(labels, attention_mask):
+#         #     label_version = list(seq_ids)
+#         #     mask_version = list(mask_bits)
+
+#         #     # hardcode for gpt
+#         #     label_version.append(self.tokenizer.eos_token_id)
+#         #     mask_version.append(1)
+
+#         #     padding_to_add = self.max_target_length - len(label_version)
+#         #     if padding_to_add > 0:
+#         #         label_version.extend([-100] * padding_to_add)
+#         #         mask_version.extend([0] * padding_to_add)
+#         #     final_labels.append(label_version[:self.max_target_length])
+#         #     final_mask.append(mask_version[:self.max_target_length])
+
+#         # labels = torch.tensor(final_labels).squeeze(0)
+#         # labels_attention_mask = torch.tensor(final_mask).squeeze(0)
+
+#         # return {
+#         #     "pixel_values": pixel_values,
+#         #     "labels": labels,
+#         #     "labels_attention_mask": labels_attention_mask,
+#         # }
+
+#         return {"pixel_values": pixel_values, "labels": labels}
+    
 class VisionTextSeq2SeqDataset(Dataset):
     def __init__(
         self,
-        data: List[Tuple[Image.Image, str]],
+        data,
         image_processor: Any,
         tokenizer: Any,
         max_target_length: int,
@@ -26,32 +96,39 @@ class VisionTextSeq2SeqDataset(Dataset):
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
+    @staticmethod
+    def decode_image_from_base64(base64_string: str):
+        image_data = base64.b64decode(base64_string)
+        image = Image.open(io.BytesIO(image_data)).convert("RGB")
+        return image
+
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        pil_img, markdown_text = self.data[idx]
+        datafile = self.data[idx]
+
+        with open(datafile) as f:
+            json_data = f.read()
+            data = orjson.loads(json_data)
+
+        pil_img = self.decode_image_from_base64(data["page_screenshot"])
+        markdown_text = data["processed_markdown"]
 
         image_inputs = self.image_processor(images=pil_img, return_tensors="pt")
         pixel_values = image_inputs.pixel_values.squeeze(0)
 
         tokenized_markdown = self.tokenizer(
             text=markdown_text,
-            padding="max_length",
             truncation=True,
+            padding="max_length",
             max_length=self.max_target_length,
             return_tensors="pt",
+            add_special_tokens=True,
         )
         labels = tokenized_markdown.input_ids.squeeze(0)
-        labels_attention_mask = tokenized_markdown.attention_mask.squeeze(0)
 
-        return {
-            "pixel_values": pixel_values,
-            "labels": labels,
-            "labels_attention_mask": labels_attention_mask,
-        }
-
-        # return {"pixel_values": pixel_values, "labels": labels}
+        return {"pixel_values": pixel_values, "labels": labels}
 
 
 class ArxivOnePageDataModule(LightningDataModule):
@@ -76,6 +153,9 @@ class ArxivOnePageDataModule(LightningDataModule):
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.datamodule_cfg.decoder_model
         )
+        if "gpt2" in self.datamodule_cfg.decoder_model:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+
         self.max_target_length = self.datamodule_cfg.max_length
 
     def __load_data(self, data_cfg: Dict) -> List[Tuple[Image.Image, str]]:
@@ -99,7 +179,7 @@ class ArxivOnePageDataModule(LightningDataModule):
                 path_config.path,
                 self.log_obj,
                 self.task,
-                **(preproc_params_cfg.params or {}),
+                **(preproc_params_cfg.get("params", {})),
             )
             if processed_list:
                 all_processed_data.extend(processed_list)
@@ -177,7 +257,7 @@ class ArxivOnePageDataModule(LightningDataModule):
                     path_config.path,
                     self.log_obj,
                     self.task,
-                    **(preproc_params_cfg.params or {}),
+                    **(preproc_params_cfg.get("params", {})),
                 )
                 if not _data:
                     self.log_obj.info(

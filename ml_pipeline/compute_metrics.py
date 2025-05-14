@@ -114,9 +114,13 @@ class Seq2SeqMetricsTracker:
         decoded_preds = self.tokenizer.batch_decode(
             generated_ids.cpu(), skip_special_tokens=True
         )
-        decoded_targets = self.tokenizer.batch_decode(
-            reference_ids.cpu(), skip_special_tokens=True
-        )
+        decoded_targets = []
+        for single_ref_ids in reference_ids:
+            ids_cpu_list = single_ref_ids.cpu().tolist()
+            valid_ids = [token_id for token_id in ids_cpu_list if token_id != -100]
+
+            decoded_text = self.tokenizer.decode(valid_ids, skip_special_tokens=True)
+            decoded_targets.append(decoded_text.strip()) 
 
         list_of_list_targets = [[t] for t in decoded_targets]
 

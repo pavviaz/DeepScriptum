@@ -30,8 +30,7 @@ class ClearMLModelCheckpoint(ModelCheckpoint):
                     self.output_model = OutputModel(
                         task=self.task,
                         name=self.model_name,
-                        framework="PyTorch",
-                        label_enumeration=pl_module.trainer.datamodule.classes_map,
+                        framework="PyTorch"
                     )
                     [
                         self.output_model.set_metadata(key=k, value=v)

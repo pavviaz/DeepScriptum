@@ -2,13 +2,15 @@ from torch.optim import Adam, AdamW, SGD
 import torch.nn.functional as F
 
 from ml_pipeline.models import (
-    VEDModel,
+    VEDSingleModel,
+    VEDDuoModel,
 )
 from ml_pipeline.datamodules import (
     ArxivOnePageDataModule,
 )
 from ml_pipeline.preprocessors import (
     arxiv_onepage,
+    arxiv_onepage_processed,
 )
 
 
@@ -27,6 +29,7 @@ def distill_loss(student_preds, gts, **kwargs):
 
 PREPROCESSORS = {
     "arxiv_onepage": arxiv_onepage,
+    "arxiv_onepage_processed": arxiv_onepage_processed,
 }
 
 DATAMODULES = {
@@ -34,8 +37,12 @@ DATAMODULES = {
 }
 
 MODELS = {
-    "VEDmodel": {
-        "cls": VEDModel,
+    "VEDSingle": {
+        "cls": VEDSingleModel,
+        "dms": ["arxiv_onepage_ved"],
+    },
+    "VEDDuo": {
+        "cls": VEDDuoModel,
         "dms": ["arxiv_onepage_ved"],
     },
 }
