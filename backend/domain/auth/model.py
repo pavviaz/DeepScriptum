@@ -1,13 +1,28 @@
 import enum
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 
 
 class RoleEnum(enum.Enum):
-    owner = "создать"
-    viewer = "зритель"
-    editor = "редактор"
+    owner = "owner"
+    viewer = "viewer"
+    editor = "editor"
+
+
+class ShareRequest(BaseModel):
+    email: EmailStr
+    role: RoleEnum
+
+
+class DocumentUpdateRequest(BaseModel):
+    content: str
+
+
+class ShareResponse(BaseModel):
+    message: str
+    user_email: EmailStr
+    role_assigned: RoleEnum
 
 
 class BaseUser(BaseModel):

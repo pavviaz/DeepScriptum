@@ -5,7 +5,6 @@ from time import sleep
 import aioboto3
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
 import settings
@@ -56,15 +55,6 @@ app.state.Logger.setLevel("DEBUG")
 app.include_router(auth_router, prefix="/api")
 app.include_router(doc_router, prefix="/api")
 
-origins = ["*"]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    allow_credentials=True,
-)
-
 
 @app.get("/")
 async def root():
@@ -99,3 +89,21 @@ async def db_session_middleware(request: Request, call_next):
             await request.state.db.close()
 
     return response
+
+
+origins = [
+    "http://frontend",
+    f"http://frontend:{settings.front_settings.PORT}",
+    "http://localhost",
+    f"http://localhost:{settings.front_settings.PORT}",
+    f"http://127.0.0.1:{settings.front_settings.PORT}",
+    f"http://0.0.0.0:{settings.front_settings.PORT}",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=True,
+)

@@ -1,175 +1,302 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Page</title>
+    <title>Login - DeepScriptum</title>
+    <!-- Пример простого SVG favicon -->
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap"
+        rel="stylesheet">
+
     <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --primary-color: #6200EE;
+            --primary-variant-color: #3700B3;
+            --secondary-color: #03DAC6;
+            --text-color: #E0E0E0;
+            --text-color-darker: #BDBDBD;
+            --text-on-primary: #FFFFFF;
+            --border-color: #333333;
+            --error-color: #CF6679;
+            --font-main: 'Inter', sans-serif;
+        }
+
+        html,
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f5f5;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .login-container {
-            background-color: white;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             text-align: center;
-            width: 300px;
         }
-        .logo {
+
+        .auth-container {
+            background-color: var(--surface-color);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+            margin: 20px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .auth-logo {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-color);
+            text-decoration: none;
+            letter-spacing: -1px;
+            margin-bottom: 30px;
+            display: block;
+        }
+
+        .auth-logo .highlight {
+            color: var(--primary-color);
+        }
+
+        /* Если хочешь использовать изображение логотипа:
+        .auth-logo img {
+            width: 75px;
             margin-bottom: 20px;
         }
-        .login-container input[type="email"],
-        .login-container input[type="password"] {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+        */
+
+        .auth-container h2 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 25px;
+            color: var(--text-color);
         }
-        .login-container button {
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-control {
             width: 100%;
-            padding: 10px;
-            background-color: #007bff;
-            color: white;
+            padding: 12px 15px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-color);
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.3);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 12px 15px;
+            background-color: var(--primary-color);
+            color: var(--text-on-primary);
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
             cursor: pointer;
-        }
-        .login-container button:hover {
-            background-color: #0056b3;
-        }
-        .login-container a {
-            display: block;
+            transition: background-color 0.3s ease;
             margin-top: 10px;
-            color: #007bff;
-            text-decoration: none;
+            /* Add some space above the button */
         }
-        .login-container a:hover {
+
+        .btn-submit:hover {
+            background-color: var(--primary-variant-color);
+        }
+
+        .error-message {
+            color: var(--error-color);
+            background-color: rgba(207, 102, 121, 0.1);
+            border: 1px solid rgba(207, 102, 121, 0.3);
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            display: none;
+            /* Initially hidden */
+        }
+
+        .auth-container p {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: var(--text-color-darker);
+        }
+
+        .auth-container p a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .auth-container p a:hover {
             text-decoration: underline;
         }
-        .error-message {
-            color: red;
-            margin-top: 10px;
-            display: none; /* Initially hidden */
-        }
+
         .footer {
-            margin-top: 20px;
+            margin-top: auto;
+            /* Pushes footer to the bottom */
+            padding: 20px 0;
             font-size: 0.9em;
-            color: #666;
-            text-align: center;
+            color: var(--text-color-darker);
+            width: 100%;
         }
     </style>
 </head>
+
 <body>
 
-    <div class="login-container">
-        <img src="/assets/images/ds_logo_book.png" alt="Logo" class="logo" width="75">
+    <div class="auth-container">
+        <a href="/" class="auth-logo">Deep<span class="highlight">Scriptum</span></a>
+        <!-- Если хочешь картинку лого: <img src="/assets/images/ds_logo_book.png" alt="Logo" class="auth-logo-img"> -->
         <h2>Log in</h2>
-        <input type="email" id="email" placeholder="Enter your email address">
-        <input type="password" id="password" placeholder="Password">
-        <button id="loginButton">Log in</button>
+        <div class="form-group">
+            <input type="email" id="email" class="form-control" placeholder="Enter your email address">
+        </div>
+        <div class="form-group">
+            <input type="password" id="password" class="form-control" placeholder="Password">
+        </div>
+        <button id="loginButton" class="btn-submit">Log in</button>
         <p class="error-message" id="errorMessage"></p>
         <p>Don't have an account yet? <a href="/auth/register">Sign up</a></p>
     </div>
 
-    <div class="footer">
-        <p>DeepScriptum | © 2025 </p>
-    </div>
+    <footer class="footer">
+        <p>DeepScriptum | © <span id="currentYear"></span></p>
+    </footer>
 
     <script>
-        function getCookie(name) {
-			const value = `; ${document.cookie}`;
-			const parts = value.split(`; ${name}=`);
-			if (parts.length === 2) return parts.pop().split(';').shift();
-		}
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
 
-        function setCookie(name,value,days) {
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        function setCookie(name, value, days) {
             var expires = "";
             if (days) {
                 var date = new Date();
-                date.setTime(date.getTime() + (days*24*60*60*1000));
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
                 expires = "; expires=" + date.toUTCString();
             }
-            document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+            document.cookie = name + "=" + (value || "") + expires + "; path=/";
         }
 
-
-        document.getElementById('loginButton').addEventListener('click', function() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+        document.getElementById('loginButton').addEventListener('click', function () {
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const email = emailInput.value;
+            const password = passwordInput.value;
             const errorMessage = document.getElementById('errorMessage');
 
-            // Reset error message
+
             errorMessage.style.display = 'none';
             errorMessage.textContent = '';
+            emailInput.style.borderColor = 'var(--border-color)';
+            passwordInput.style.borderColor = 'var(--border-color)';
 
-            // Validation
-            // if (!validateEmail(email)) {
-            //     errorMessage.style.display = 'block';
-            //     errorMessage.textContent = 'Invalid email format';
-            //     return;
-            // }
 
-            if (password.length < 4) {
+            if (!validateEmail(email)) {
                 errorMessage.style.display = 'block';
-                errorMessage.textContent = 'Password must be at least 8 characters';
+                errorMessage.textContent = 'Invalid email format';
+                emailInput.style.borderColor = 'var(--error-color)';
                 return;
             }
 
-            // AJAX request
+            if (password.length < 4) {
+                errorMessage.style.display = 'block';
+                errorMessage.textContent = 'Password must be at least 4 characters';
+                passwordInput.style.borderColor = 'var(--error-color)';
+                return;
+            }
+
             const xhr = new XMLHttpRequest();
-            xhr.open('POST', '{{LOGIN_ENDPOINT}}', true); // Replace with the endpoint from FastAPI
-            console.log('{{LOGIN_ENDPOINT}}')
+            xhr.open('POST', '{{LOGIN_ENDPOINT}}', true);
+            console.log('Login endpoint: {{LOGIN_ENDPOINT}}');
             xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
 
-            xhr.onload = function() {
+            xhr.onload = function () {
                 if (xhr.status === 200) {
-                    const responseData = JSON.parse(xhr.responseText); // Парсим JSON
+                    const responseData = JSON.parse(xhr.responseText);
                     const accessToken = responseData.access_token;
 
-                    setCookie("ds_auth", accessToken, 7)
-
-                    window.location.href = '/home'; // Redirect to dashboard
-                } else if (xhr.status === 403) {
-                    // Forbidden
+                    if (accessToken) {
+                        localStorage.setItem('ds_auth_token', accessToken);
+                        window.location.href = '/home';
+                    } else {
+                        errorMessage.style.display = 'block';
+                        errorMessage.textContent = 'Login successful, but no token received.';
+                    }
+                } else if (xhr.status === 403 || xhr.status === 401 || xhr.status === 422) {
+                    try {
+                        const errorData = JSON.parse(xhr.responseText);
+                        errorMessage.textContent = errorData.detail || 'Wrong email or password';
+                    } catch (e) {
+                        errorMessage.textContent = 'Wrong email or password';
+                    }
                     errorMessage.style.display = 'block';
-                    errorMessage.textContent = 'Wrong email or password';
                 } else {
-                    // Other error
                     errorMessage.style.display = 'block';
-                    errorMessage.textContent = 'An error occurred';
+                    errorMessage.textContent = `An error occurred (Status: ${xhr.status})`;
                 }
             };
 
-            xhr.onerror = function() {
+            xhr.onerror = function () {
                 errorMessage.style.display = 'block';
-                errorMessage.textContent = 'Network error';
+                errorMessage.textContent = 'Network error. Please check your connection.';
             };
 
             const data = {
                 email: email,
                 password: password
             };
-
-            console.log(JSON.stringify(data))
-
             xhr.send(JSON.stringify(data));
-            
         });
 
         function validateEmail(email) {
             const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return re.test(email);
+            return re.test(String(email).toLowerCase());
         }
     </script>
 
 </body>
+
 </html>

@@ -60,4 +60,9 @@ async def register_page(request: Request):
 
 @app.get("/home")
 async def home_page(request: Request):
+    return templates.TemplateResponse(name="home.html", request=request)
+
+
+@app.get("/editor/{document_id}")
+async def editor_page(request: Request):
     return templates.TemplateResponse(name="dashboard.html", request=request)

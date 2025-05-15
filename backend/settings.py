@@ -79,9 +79,16 @@ class PostgresSettings(BaseSettings):
     @property
     def URI(self):
         return f"postgresql+asyncpg://{self.USER}:{self.PASSWORD}@{self.HOST}:{self.PORT}/{self.DB}"
-    
+
     class Config(ToolConfig):
         env_prefix = "postgres_"
+
+
+class FrontAppSettings(BaseSettings):
+    PORT: int = 5000
+
+    class Config(ToolConfig):
+        env_prefix = "front_"
 
 
 postgres_settings = PostgresSettings()
@@ -89,3 +96,4 @@ app_settings = AppSettings()
 redis_settings = RedisSettings()
 minio_settings = MinIOSettings()
 rabbitmq_settings = RabbitMQSettings()
+front_settings = FrontAppSettings()

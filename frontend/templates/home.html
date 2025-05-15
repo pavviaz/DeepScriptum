@@ -1,72 +1,963 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TestProject</title>
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;700&display=swap" rel="stylesheet">
+    <title>My Hub - DeepScriptum</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Roboto+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
     <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --surface-light-color: #2a2a2a;
+            --primary-color: #6200EE;
+            --primary-variant-color: #3700B3;
+            --secondary-color: #03DAC6;
+            --text-color: #E0E0E0;
+            --text-color-darker: #BDBDBD;
+            --text-on-primary: #FFFFFF;
+            --border-color: #333333;
+            --error-color: #CF6679;
+            --success-color: #03DAC5;
+            --font-main: 'Inter', sans-serif;
+            --font-mono: 'Roboto Mono', monospace;
+        }
+
+        html,
         body {
+            height: 100%;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            font-family: 'Raleway', sans-serif;
-            background-color: #f3f4f6;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+        }
+
+        .hub-container {
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            min-height: 100vh;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        .hub-header {
+            padding: 20px 0;
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-            height: 100vh;
-            text-align: center;
+            border-bottom: 1px solid var(--border-color);
         }
 
-        .container {
-            max-width: 600px;
+        .hub-logo {
+            font-size: 1.5rem;
+            /* Поменьше, как просил */
+            font-weight: 600;
+            color: var(--text-color-darker);
         }
 
-        .title {
-            font-size: 3rem;
+        .hub-logo .highlight {
+            color: var(--primary-color);
             font-weight: 700;
-            color: #333;
+        }
+
+        .hub-nav button {
+            background: none;
+            border: 1px solid var(--text-color-darker);
+            color: var(--text-color-darker);
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: var(--font-main);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .hub-nav button:hover {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: var(--text-on-primary);
+        }
+
+        .hub-main-content {
+            flex-grow: 1;
+            padding: 40px 0;
+        }
+
+        .upload-section {
+            background-color: var(--surface-color);
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 40px;
+            text-align: center;
+            border: 2px dashed var(--border-color);
+            transition: border-color 0.3s ease, background-color 0.3s ease;
+        }
+
+        .upload-section.dragover {
+            border-color: var(--primary-color);
+            background-color: var(--surface-light-color);
+        }
+
+        .upload-section h2 {
+            margin-top: 0;
+            font-size: 1.8rem;
+            color: var(--text-color);
+        }
+
+        .upload-section p {
+            color: var(--text-color-darker);
+            font-size: 1rem;
             margin-bottom: 20px;
         }
 
-        .buttons {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
         }
 
-        .button {
-            padding: 10px 20px;
+        .upload-section input[type="file"] {
+            display: none;
+            /* Скрываем стандартный инпут */
+        }
+
+        .upload-button,
+        .create-empty-button {
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: var(--primary-color);
+            color: var(--text-on-primary);
+            text-decoration: none;
             font-size: 1rem;
-            font-weight: 700;
-            color: #fff;
-            background-color: #007bff;
-            border: none;
-            border-radius: 5px;
-            text-transform: uppercase;
+            font-weight: 500;
+            border-radius: 25px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: all 0.3s ease;
+            border: none;
+            margin: 5px;
+        }
+
+        .upload-button:hover,
+        .create-empty-button:hover {
+            background-color: var(--primary-variant-color);
+            transform: translateY(-2px);
+        }
+
+        .create-empty-button {
+            background-color: transparent;
+            border: 1px solid var(--secondary-color);
+            color: var(--secondary-color);
+        }
+
+        .create-empty-button:hover {
+            background-color: var(--secondary-color);
+            color: var(--bg-color);
+            /* или var(--text-on-primary) */
+        }
+
+        .upload-status {
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+
+        .upload-status.success {
+            color: var(--success-color);
+        }
+
+        .upload-status.error {
+            color: var(--error-color);
+        }
+
+
+        .documents-section {
+            margin-bottom: 40px;
+        }
+
+        .documents-section h2 {
+            font-size: 1.5rem;
+            color: var(--text-color);
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .documents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .document-card {
+            background-color: var(--surface-color);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .document-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            border-color: var(--primary-color);
+        }
+
+        .document-card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .document-card-icon {
+            font-size: 1.5rem;
+            color: var(--secondary-color);
+            margin-right: 10px;
+            min-width: 24px;
+            /* Для выравнивания, если иконка меняется */
+            text-align: center;
+        }
+
+        .document-card h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+            color: var(--text-color);
+            word-break: break-word;
+        }
+
+        .document-card-meta {
+            font-size: 0.8rem;
+            color: var(--text-color-darker);
+            margin-top: auto;
+        }
+
+        .document-card-id {
+            font-family: var(--font-mono);
+            display: block;
+        }
+
+        .no-documents {
+            text-align: center;
+            color: var(--text-color-darker);
+            padding: 20px;
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+        }
+
+        .footer {
+            padding: 20px 0;
+            text-align: center;
+            font-size: 0.9em;
+            color: var(--text-color-darker);
+            border-top: 1px solid var(--border-color);
+            margin-top: auto;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            width: 18px;
+            height: 18px;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .document-card-icon .fa-spinner {
+            /* Стили для спиннера в карточке */
+            font-size: 1.3rem;
+            /* Чуть меньше основного спиннера */
+            color: var(--primary-color);
+        }
+
+        .share-doc-button {
+            background-color: transparent;
+            border: 1px solid var(--text-color-darker);
+            color: var(--text-color-darker);
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .share-doc-button:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            color: var(--bg-color);
+        }
+
+        .share-doc-button i {
+            margin-right: 5px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            z-index: 1001;
+            /* Выше чем навбар */
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            /* Для центрирования */
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: var(--surface-color);
+            padding: 30px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            color: var(--text-color);
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .close-modal-button {
+            color: var(--text-color-darker);
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-modal-button:hover,
+        .close-modal-button:focus {
+            color: var(--primary-color);
             text-decoration: none;
         }
 
-        .button:hover {
-            background-color: #0056b3;
+        .modal .form-group {
+            margin-bottom: 15px;
         }
 
-        .button:active {
-            transform: scale(0.98);
+        .modal .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--text-color-darker);
+        }
+
+        .modal .form-control {
+            /* Стили для инпутов и селекта в модалке */
+            width: 100%;
+            padding: 10px 12px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-color);
+            font-size: 0.95rem;
+            box-sizing: border-box;
+        }
+
+        .modal .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.3);
+        }
+
+        .modal .btn-submit {
+            /* Стили для кнопки в модалке */
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: var(--text-on-primary);
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .modal .btn-submit:hover {
+            background-color: var(--primary-variant-color);
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
+
 <body>
-    <div class="container">
-        <h1 class="title">TestProject</h1>
-        <div class="buttons">
-            <a href="#" class="button">Login</a>
-            <a href="#" class="button">Register</a>
-            <a href="#" class="button">Try it out</a>
+    <div class="hub-container">
+        <header class="hub-header">
+            <div class="hub-logo">Deep<span class="highlight">Scriptum</span></div>
+            <nav class="hub-nav">
+                <button id="logoutButton">Log Out</button>
+            </nav>
+        </header>
+
+        <main class="hub-main-content">
+            <section class="upload-section" id="dropZone">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <h2>Upload Your Document</h2>
+                <p>Drag & Drop a PDF file here, or click to select file.</p>
+                <input type="file" id="fileInput" accept=".pdf" />
+                <button type="button" class="upload-button" id="browseButton">Browse Files</button>
+                <button type="button" class="create-empty-button" id="createEmptyDocButton">Create Empty
+                    Document</button>
+                <div class="upload-status" id="uploadStatus"></div>
+            </section>
+
+            <section class="documents-section">
+                <h2>My Documents <span id="docListSpinner" class="spinner" style="display: none;"></span></h2>
+                <div class="documents-grid" id="documentsGrid">
+                    <!-- Документы будут добавлены сюда через JS -->
+                </div>
+                <p class="no-documents" id="noDocumentsMessage" style="display: none;">You don't have any documents yet.
+                    Upload one or create an empty document to get started!</p>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>© <span id="currentYear"></span> DeepScriptum. All Rights Reserved.</p>
+        </footer>
+    </div>
+    <div id="shareModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-modal-button" onclick="closeShareModal()">×</span>
+            <h2>Share "<span id="shareModalDocName"></span>"</h2>
+            <form id="shareForm">
+                <input type="hidden" id="shareDocIdInput" name="docId">
+                <div class="form-group">
+                    <label for="shareUserEmail">User Email:</label>
+                    <input type="email" id="shareUserEmail" name="email" class="form-control" required
+                        placeholder="user@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="shareRoleSelect">Role:</label>
+                    <select id="shareRoleSelect" name="role" class="form-control">
+                        <option value="editor">Editor</option>
+                        <option value="viewer">Viewer</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-submit">Add Access</button>
+            </form>
+            <div id="shareStatusMessage" class="upload-status" style="margin-top: 15px;"></div>
+            <!-- Опционально: список пользователей с доступом будет здесь -->
         </div>
     </div>
+
+    <script>
+        const API_BASE_URL = 'http://0.0.0.0:8080/api';
+
+
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+        function eraseCookie(name) {
+            document.cookie = name + '=; Max-Age=-99999999; path=/;';
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+
+            const authToken = localStorage.getItem("ds_auth_token");
+            if (!authToken) {
+                window.location.href = "/auth/login";
+                return;
+            }
+
+            console.log("token found.");
+
+
+
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+            const browseButton = document.getElementById('browseButton');
+            const createEmptyDocButton = document.getElementById('createEmptyDocButton');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const documentsGrid = document.getElementById('documentsGrid');
+            const noDocumentsMessage = document.getElementById('noDocumentsMessage');
+            const logoutButton = document.getElementById('logoutButton');
+            const docListSpinner = document.getElementById('docListSpinner');
+            const shareModal = document.getElementById('shareModal');
+            const shareForm = document.getElementById('shareForm');
+            const shareDocIdInput = document.getElementById('shareDocIdInput');
+            const shareModalDocName = document.getElementById('shareModalDocName');
+            const shareUserEmailInput = document.getElementById('shareUserEmail');
+            const shareRoleSelect = document.getElementById('shareRoleSelect');
+            const shareStatusMessage = document.getElementById('shareStatusMessage');
+
+            document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+
+            logoutButton.addEventListener('click', function () {
+                localStorage.removeItem("ds_auth_token");
+                fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` } });
+                window.location.href = "/";
+            });
+
+
+
+            dropZone.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('dragover');
+            });
+            dropZone.addEventListener('dragleave', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('dragover');
+            });
+            dropZone.addEventListener('drop', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileUpload(files[0]);
+                }
+            });
+
+            browseButton.addEventListener('click', function () {
+                fileInput.click();
+            });
+            fileInput.addEventListener('change', function (e) {
+                if (e.target.files.length > 0) {
+                    handleFileUpload(e.target.files[0]);
+                }
+            });
+
+            function handleFileUpload(file) {
+                if (file.type !== "application/pdf") {
+                    showUploadStatus("Only PDF files are allowed.", true);
+                    return;
+                }
+                const maxSize = 10 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    showUploadStatus(`File is too large. Max size is ${maxSize / (1024 * 1024)}MB.`, true);
+                    return;
+                }
+
+                const token = localStorage.getItem("ds_auth_token");
+                if (!token) {
+                    showUploadStatus("Authentication error. Please log in again.", true);
+                    window.location.href = "/auth/login";
+                    return;
+                }
+
+
+                showUploadStatus("Uploading " + file.name, false, true);
+
+                const formData = new FormData();
+                formData.append('document', file);
+
+                fetch(`${API_BASE_URL}/documents/ocr`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+
+                    },
+                    body: formData
+                })
+                    .then(response => {
+                        if (!response.ok) {
+
+                            return response.json().then(err => { throw err; }).catch(() => { throw new Error(`HTTP error ${response.status}`); });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        showUploadStatus(`File "${file.name}" uploaded. Task ID: ${data.doc_id}. Processing...`, false);
+
+
+                        setTimeout(fetchDocuments, 3000);
+                        pollSingleDocumentStatus(data.doc_id);
+                    })
+                    .catch(error => {
+                        console.error('Upload error:', error);
+                        const detail = error.detail || error.message || 'Unknown upload error';
+                        showUploadStatus(`Error uploading file: ${detail}`, true);
+                    })
+                    .finally(() => {
+                        fileInput.value = '';
+                    });
+            }
+
+            function showUploadStatus(message, isError = false, showSpinner = false) {
+                uploadStatus.innerHTML = '';
+                const textNode = document.createTextNode(message + " ");
+                uploadStatus.appendChild(textNode);
+                uploadStatus.className = 'upload-status';
+                if (isError) {
+                    uploadStatus.classList.add('error');
+                } else {
+                    uploadStatus.classList.add('success');
+                }
+                if (showSpinner) {
+                    const spinner = document.createElement('span');
+                    spinner.className = 'spinner';
+                    uploadStatus.appendChild(spinner);
+                }
+            }
+
+
+            createEmptyDocButton.addEventListener('click', function () {
+
+
+
+                showUploadStatus("Creating empty document...", false, true);
+                fetch(`${API_BASE_URL}/documents/empty`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(err => { throw err; }).catch(() => { throw new Error(`HTTP error ${response.status}`); });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+
+                        showUploadStatus(`Created empty document: ${data.name}`, false);
+                        fetchDocuments();
+
+                    })
+                    .catch(error => {
+                        console.error('Error creating empty document:', error);
+                        const detail = error.detail || error.message || 'Failed to create empty document.';
+                        showUploadStatus(detail, true);
+                    })
+            });
+
+
+            function fetchDocuments() {
+                docListSpinner.style.display = 'inline-block';
+                noDocumentsMessage.style.display = 'none';
+                documentsGrid.innerHTML = '';
+
+                const token = localStorage.getItem("ds_auth_token");
+                if (!token) {
+                    window.location.href = "/auth/login";
+                    return;
+                }
+
+
+                fetch(`${API_BASE_URL}/documents/`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                })
+
+                    .then(response => {
+                        if (response.status === 401) {
+                            console.log("Unauthorized access to /documents. Redirecting to login.");
+                            eraseCookie("ds_auth");
+                            window.location.href = "/auth/login";
+                            throw new Error('Unauthorized');
+                        }
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (Object.keys(data).length === 0) {
+                            noDocumentsMessage.style.display = 'block';
+                        } else {
+                            noDocumentsMessage.style.display = 'none';
+                            for (const docId in data) {
+                                const doc = data[docId];
+                                const card = createDocumentCard(docId, doc.name, doc.s3_md_id);
+                                documentsGrid.appendChild(card);
+                                if (doc.s3_md_id === "0" || doc.s3_md_id === null || doc.s3_md_id === "None") {
+                                    pollSingleDocumentStatus(docId, card);
+                                }
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        if (error.message.includes('401') || (error.response && error.response.status === 401)) {
+                            localStorage.removeItem("ds_auth_token");
+                            window.location.href = "/auth/login";
+                        } else {
+                            console.error('Error fetching documents:', error);
+
+                        }
+                    })
+                    .finally(() => {
+                        docListSpinner.style.display = 'none';
+                    });
+            }
+
+            function createDocumentCard(id, name, s3MdId) {
+                const card = document.createElement('div');
+                card.className = 'document-card';
+                card.dataset.docId = id;
+
+                const isProcessing = s3MdId === "0" || s3MdId === null || s3MdId === "None";
+
+                card.innerHTML = `
+                    <div class="document-card-header">
+                        <span class="document-card-icon"><i class="fas ${isProcessing ? 'fa-spinner fa-spin' : 'fa-file-alt'}"></i></span>
+                        <h3>${name || 'Untitled Document'}</h3>
+                    </div>
+                    <div class="document-card-actions" style="margin-top: 10px; display: flex; justify-content: flex-end;">
+                        <button class="share-doc-button" data-doc-id="${id}" title="Share Document">
+                            <i class="fas fa-share-alt"></i> Share
+                        </button>
+                    </div>
+                    <p class="document-card-meta">
+                        ID: <span class="document-card-id">${id}</span>
+                        ${isProcessing ? '<br><span class="status-processing" style="color: var(--secondary-color);">Status: Processing...</span>' : ''}
+                    </p>
+                `;
+
+                const viewArea = card.querySelector('.document-card-header');
+                viewArea.addEventListener('click', function () {
+                    const currentIcon = card.querySelector('.document-card-icon i');
+                    if (currentIcon.classList.contains('fa-spinner')) {
+                        alert("This document is still processing. Please wait.");
+                    } else {
+                        window.location.href = `/editor/${id}`;
+                    }
+                });
+
+                const shareButton = card.querySelector('.share-doc-button');
+                shareButton.addEventListener('click', function (event) {
+                    event.stopPropagation();
+                    openShareModal(id, name);
+                });
+
+                return card;
+            }
+
+            function pollSingleDocumentStatus(docId, cardElement) {
+
+                if (!cardElement) {
+                    cardElement = documentsGrid.querySelector(`.document-card[data-doc-id="${docId}"]`);
+                }
+                if (!cardElement) {
+                    console.warn(`Card element for docId ${docId} not found for polling.`);
+                    return;
+                }
+
+                const iconElement = cardElement.querySelector('.document-card-icon i');
+                const statusTextElement = cardElement.querySelector('.status-processing');
+
+
+                if (!iconElement || !iconElement.classList.contains('fa-spinner')) {
+
+                    return;
+                }
+
+
+                const token = localStorage.getItem("ds_auth_token");
+                if (!token) {
+                    console.error("No auth token found for polling status. User might be logged out.");
+                    return;
+                }
+
+                const intervalId = setInterval(() => {
+
+
+                    const currentToken = localStorage.getItem("ds_auth_token");
+                    if (!currentToken) {
+                        console.warn(`Auth token disappeared during polling for ${docId}. Stopping poll.`);
+                        clearInterval(intervalId);
+                        return;
+                    }
+
+                    fetch(`${API_BASE_URL}/documents/${docId}/status`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${currentToken}`,
+                            'Accept': 'application/json'
+                        }
+                    })
+                        .then(response => {
+                            if (response.status === 401) {
+                                console.warn(`Unauthorized polling status for ${docId}. Token might be invalid. Stopping poll.`);
+                                clearInterval(intervalId);
+
+
+
+                                throw new Error('Unauthorized poll');
+                            }
+                            if (!response.ok) {
+                                throw new Error(`HTTP error polling status! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(status => {
+                            if (status.s3_md_id && status.s3_md_id !== "0" && status.s3_md_id !== null && status.s3_md_id !== "None") {
+                                clearInterval(intervalId);
+                                if (cardElement.dataset.pollIntervalId === String(intervalId)) {
+                                    delete cardElement.dataset.pollIntervalId;
+                                }
+
+                                if (iconElement) {
+                                    iconElement.classList.remove('fa-spinner', 'fa-spin');
+                                    iconElement.classList.add('fa-file-alt');
+                                }
+                                if (statusTextElement) {
+                                    statusTextElement.remove();
+                                }
+                                if (cardElement) cardElement.dataset.s3MdId = status.s3_md_id;
+                            }
+                        })
+                        .catch(error => {
+                            if (error.message !== 'Unauthorized poll') {
+                                console.error(`Error polling status for ${docId}:`, error);
+                            }
+                        });
+                }, 5000);
+
+
+                cardElement.dataset.pollIntervalId = intervalId;
+            }
+
+            function openShareModal(docId, docName) {
+                shareDocIdInput.value = docId;
+                shareModalDocName.textContent = docName;
+                shareUserEmailInput.value = '';
+                shareRoleSelect.value = 'editor';
+                shareStatusMessage.textContent = '';
+                shareStatusMessage.className = 'upload-status';
+                shareModal.style.display = 'flex';
+            }
+
+            window.closeShareModal = function () {
+                shareModal.style.display = 'none';
+            }
+
+
+            window.addEventListener('click', function (event) {
+                if (event.target === shareModal) {
+                    closeShareModal();
+                }
+            });
+
+            window.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && shareModal.style.display === 'flex') {
+                    closeShareModal();
+                }
+            });
+
+
+            shareForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                const docId = shareDocIdInput.value;
+                const email = shareUserEmailInput.value;
+                const role = shareRoleSelect.value;
+                const token = localStorage.getItem("ds_auth_token");
+
+                if (!token) {
+                    showShareStatus("Authentication error. Please log in again.", true);
+
+                    return;
+                }
+
+                showShareStatus("Sharing...", false, true);
+
+                fetch(`${API_BASE_URL}/documents/${docId}/share`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ email: email, role: role })
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(err => {
+
+                                const errorMessage = err.detail || `HTTP error ${response.status}`;
+                                throw new Error(errorMessage);
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        showShareStatus(data.message || "Access granted successfully!", false);
+
+
+
+                    })
+                    .catch(error => {
+                        console.error('Share error:', error);
+                        showShareStatus(`Error: ${error.message}`, true);
+                    });
+            });
+
+            function showShareStatus(message, isError = false, showSpinner = false) {
+                shareStatusMessage.innerHTML = '';
+                const textNode = document.createTextNode(message + " ");
+                shareStatusMessage.appendChild(textNode);
+
+                shareStatusMessage.className = 'upload-status';
+                if (isError) {
+                    shareStatusMessage.classList.add('error');
+                } else {
+
+                    shareStatusMessage.classList.add('success');
+                }
+                if (showSpinner) {
+                    const spinner = document.createElement('span');
+                    spinner.className = 'spinner';
+                    shareStatusMessage.appendChild(spinner);
+                }
+            }
+
+
+            fetchDocuments();
+        });
+    </script>
 </body>
+
 </html>

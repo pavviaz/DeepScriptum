@@ -1,524 +1,1023 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
+    <title>Editor - DeepScriptum</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Roboto+Mono:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- highlight.js для подсветки синтаксиса в превью -->
     <link rel="stylesheet"
-        href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
-        <style>
-            body {
-                margin: 0;
-                font-family: Arial, sans-serif;
-                display: flex;
-                height: 100vh;
-            }
-    
-            .sidebar {
-                width: 250px;
-                background-color: #f8f9fa;
-                padding: 20px;
-                box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-            }
-    
-            .sidebar h2 {
-                margin-top: 0;
-                font-size: 1.2em;
-            }
-    
-            .sidebar ul {
-                list-style: none;
-                padding: 0;
-            }
-    
-            .sidebar ul li {
-                margin: 10px 0;
-            }
-    
-            .sidebar ul li a {
-                text-decoration: none;
-                color: #333;
-                padding: 10px;
-                display: block;
-                border-radius: 5px;
-                transition: background-color 0.3s;
-                cursor: pointer;
-            }
-    
-            .sidebar ul li a:hover {
-                background-color: #e2e6ea;
-            }
-    
-            .sidebar ul li.loading a {
-                pointer-events: none;
-                /* Disable clicks while loading */
-            }
-    
-            .sidebar ul li .spinner {
-                display: inline-block;
-                width: 12px;
-                height: 12px;
-                border: 2px solid #ccc;
-                border-radius: 50%;
-                border-top-color: #007bff;
-                animation: spin 1s linear infinite;
-                margin-left: 5px;
-            }
-    
-            .loading {
-                display: inline-block;
-                width: 12px;
-                height: 12px;
-                border: 2px solid #007bff;
-                border-top: 2px solid transparent;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-            }
-    
-            @keyframes spin {
-                from {
-                    transform: rotate(0deg);
-                }
-    
-                to {
-                    transform: rotate(360deg);
-                }
-            }
-    
-            .content {
-                flex: 1;
-                padding: 20px;
-                display: flex;
-                flex-direction: column;
-            }
-    
-            .content-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-    
-            .content-header h1 {
-                margin: 0;
-                font-size: 1.5em;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-    
-            .small-text {
-                font-size: 0.7em;
-                color: #666;
-            }
-    
-            .button-group {
-                display: flex;
-                gap: 10px;
-            }
-    
-            .button-group button {
-                padding: 10px 20px;
-                background-color: #007bff;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-                transition: background-color 0.3s;
-            }
-    
-            .button-group button:hover {
-                background-color: #0056b3;
-            }
-    
-            .content-area {
-                display: flex;
-                margin-top: 20px;
-                gap: 20px;
-                height: calc(100vh - 100px);
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --surface-lighter-color: #2a2a2a;
+            /* Для активных элементов или фона textarea */
+            --primary-color: #6200EE;
+            --primary-variant-color: #3700B3;
+            --secondary-color: #03DAC6;
+            --text-color: #E0E0E0;
+            --text-color-darker: #BDBDBD;
+            --text-on-primary: #FFFFFF;
+            --border-color: #333333;
+            --error-color: #CF6679;
+            --success-color: #03DAC5;
+            --font-main: 'Inter', sans-serif;
+            --font-mono: 'Roboto Mono', monospace;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-main);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            overflow: hidden;
+            /* Чтобы избежать двойных скроллбаров */
+        }
+
+        .editor-layout {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* --- Sidebar --- */
+        .sidebar {
+            width: 280px;
+            background-color: var(--surface-color);
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .sidebar-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-logo {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-color-darker);
+            text-decoration: none;
+            /* Если это ссылка на хаб */
+        }
+
+        .sidebar-logo .highlight {
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+
+        .sidebar-upload-button {
+            display: block;
+            width: 100%;
+            padding: 10px 15px;
+            margin-top: 15px;
+            background-color: var(--primary-color);
+            color: var(--text-on-primary);
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            text-align: center;
+        }
+
+        .sidebar-upload-button:hover {
+            background-color: var(--primary-variant-color);
+        }
+
+        .sidebar-upload-button i {
+            margin-right: 8px;
+        }
+
+        .sidebar input[type="file"] {
+            display: none;
+        }
+
+        .sidebar-file-list-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            /* Скролл для списка файлов */
+            margin-top: 10px;
+        }
+
+        .sidebar-file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-file-list li a {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            color: var(--text-color-darker);
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            transition: background-color 0.2s ease, color 0.2s ease;
+            font-size: 0.9rem;
+            word-break: break-word;
+        }
+
+        .sidebar-file-list li a:hover {
+            background-color: var(--surface-lighter-color);
+            color: var(--text-color);
+        }
+
+        .sidebar-file-list li a.active {
+            background-color: var(--primary-color);
+            color: var(--text-on-primary);
+            font-weight: 500;
+        }
+
+        .sidebar-file-list li a .file-icon {
+            margin-right: 10px;
+            width: 16px;
+            /* Для выравнивания */
+            text-align: center;
+        }
+
+        .sidebar-file-list li a .spinner {
+            /* Спиннер для файла в обработке */
+            border-width: 2px;
+            width: 12px;
+            height: 12px;
+            margin-left: auto;
+            /* Справа от имени файла */
+            border-top-color: var(--secondary-color);
+        }
+
+        /* --- Main Content Area (Editor + Preview) --- */
+        .main-editor-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            /* Предотвратить скролл основной области, если панели имеют свой */
+        }
+
+        .editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 25px;
+            background-color: var(--surface-color);
+            border-bottom: 1px solid var(--border-color);
+            min-height: 30px;
+            /* Минимальная высота для кнопок */
+        }
+
+        .document-title-header {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: var(--text-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 50%;
+            /* Чтобы не вытеснять кнопки */
+        }
+
+        .editor-actions button {
+            background: none;
+            border: 1px solid var(--text-color-darker);
+            color: var(--text-color-darker);
+            padding: 8px 15px;
+            margin-left: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: var(--font-main);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .editor-actions button:hover {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: var(--text-on-primary);
+        }
+
+        .editor-actions button i {
+            margin-right: 6px;
+        }
+
+        .editor-actions button.save-button {
+            /* Особый стиль для кнопки Save */
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            color: var(--bg-color);
+        }
+
+        .editor-actions button.save-button:hover {
+            background-color: #02c1ac;
+            /* Чуть темнее secondary */
+        }
+
+        .editor-panels-container {
+            display: flex;
+            flex-grow: 1;
+            /* Занимает все оставшееся место */
+            overflow: hidden;
+            /* Панели будут иметь свой скролл */
+        }
+
+        .editor-panel,
+        .preview-panel {
+            width: 50%;
+            height: 100%;
+            /* Занимает всю высоту .editor-panels-container */
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+            font-family: var(--font-mono);
+            /* Моноширинный для редактора */
+            font-size: 1rem;
+            /* или 16px */
+            line-height: 1.6;
+        }
+
+        .editor-panel {
+            /* Markdown Editor (textarea) */
+            background-color: var(--surface-lighter-color);
+            /* Чуть светлее фона */
+            color: var(--text-color);
+            border: none;
+            resize: none;
+            /* Убрать возможность изменения размера */
+            border-right: 1px solid var(--border-color);
+            /* Разделитель */
+        }
+
+        .editor-panel:focus {
+            outline: none;
+            box-shadow: inset 0 0 0 2px var(--primary-color);
+            /* Внутренняя рамка при фокусе */
+        }
+
+        .preview-panel {
+            /* Markdown Preview */
+            background-color: var(--bg-color);
+            /* Такой же как основной фон */
+            color: var(--text-color);
+            font-family: var(--font-main);
+            /* Обычный шрифт для превью */
+        }
+
+        /* Стили для Markdown рендера в .preview-panel (пример) */
+        .preview-panel h1,
+        .preview-panel h2,
+        .preview-panel h3 {
+            color: var(--primary-color);
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+        }
+
+        .preview-panel h1 {
+            font-size: 1.8em;
+        }
+
+        .preview-panel h2 {
+            font-size: 1.5em;
+        }
+
+        .preview-panel h3 {
+            font-size: 1.3em;
+        }
+
+        .preview-panel p {
+            margin-bottom: 1em;
+            line-height: 1.7;
+        }
+
+        .preview-panel a {
+            color: var(--secondary-color);
+            text-decoration: none;
+        }
+
+        .preview-panel a:hover {
+            text-decoration: underline;
+        }
+
+        .preview-panel code {
+            background-color: var(--surface-color);
+            padding: 0.2em 0.4em;
+            margin: 0;
+            font-size: 85%;
+            border-radius: 3px;
+            font-family: var(--font-mono);
+        }
+
+        .preview-panel pre {
+            background-color: var(--surface-color);
+            padding: 1em;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        .preview-panel pre code {
+            padding: 0;
+            background-color: transparent;
+        }
+
+        .preview-panel ul,
+        .preview-panel ol {
+            padding-left: 2em;
+            margin-bottom: 1em;
+        }
+
+        .preview-panel blockquote {
+            border-left: 3px solid var(--primary-variant-color);
+            padding-left: 1em;
+            margin-left: 0;
+            color: var(--text-color-darker);
+        }
+
+        .preview-panel table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 1em;
+        }
+
+        .preview-panel th,
+        .preview-panel td {
+            border: 1px solid var(--border-color);
+            padding: 0.5em;
+        }
+
+        .preview-panel th {
+            background-color: var(--surface-color);
+        }
+
+        /* Спиннер для загрузки */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(18, 18, 18, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .loading-overlay .spinner {
+            width: 50px;
+            height: 50px;
+            border-width: 5px;
+        }
+
+        .spinner {
+            /* Общий стиль для спиннеров */
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            width: 18px;
+            height: 18px;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
             }
 
-            .text-area {
-                width: 50%;
-                padding: 20px;
-                background-color: #fff;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-                overflow-y: auto;
-                height: 100%;
+            100% {
+                transform: rotate(360deg);
             }
-            
-            .text-area:first-of-type {
-                height: 95%;
-            }
-    
-            .text-area[contenteditable="true"]:focus {
-                outline: 2px solid #007bff;
-            }
-    
-            .file-upload {
-                margin-bottom: 20px;
-            }
-    
-            #fileUpload {
-                display: none;
-            }
-    
-            .file-upload label {
-                display: inline-block;
-                padding: 10px 20px;
-                background-color: #007bff;
-                color: white;
-                border-radius: 5px;
-                cursor: pointer;
-                transition: background-color 0.3s;
-            }
-    
-            .file-upload label:hover {
-                background-color: #0056b3;
-            }
-    
-            .progress-bar {
-                width: 100%;
-                background-color: #e9ecef;
-                border-radius: 5px;
-                margin-top: 10px;
-                display: none;
-            }
-    
-            .progress-bar-inner {
-                height: 10px;
-                width: 0;
-                background-color: #007bff;
-                border-radius: 5px;
-            }
-    
-            .popup {
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background-color: white;
-                padding: 20px;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-                display: none;
-                z-index: 1000;
-                width: 350px;
-                max-height: 400px;
-                overflow-y: auto;
-                border-radius: 8px;
-            }
-    
-            .popup h2 {
-                margin-top: 0;
-                font-size: 1.2em;
-                border-bottom: 1px solid #ddd;
-                padding-bottom: 10px;
-            }
-    
-            .popup ul {
-                list-style: none;
-                padding: 0;
-                margin-bottom: 20px;
-            }
-    
-            .popup ul li {
-                margin: 10px 0;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 5px 0;
-                border-bottom: 1px solid #f0f0f0;
-            }
-    
-            .popup ul li select,
-            .popup .access-type select {
-                margin-left: 10px;
-                padding: 5px;
-                border-radius: 5px;
-                border: 1px solid #ccc;
-                width: 100px;
-            }
-    
-            .popup p,
-            .popup .access-type {
-                margin: 10px 0;
-                font-size: 0.9em;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-    
-            .popup a {
-                color: #007bff;
-                text-decoration: none;
-            }
-    
-            .popup a:hover {
-                text-decoration: underline;
-            }
-    
-            .popup button {
-                padding: 8px 15px;
-                background-color: #007bff;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-                transition: background-color 0.3s;
-                display: block;
-                margin: 20px auto 0;
-                width: 80px;
-                text-align: center;
-            }
-    
-            .popup button:hover {
-                background-color: #0056b3;
-            }
+        }
 
-            #editor {
-                width: 50%;
-                padding: 20px;
-                background-color: #fff;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-                overflow-y: auto;
-                height: 95%;
-                font-family: inherit; /* Наследуем шрифт от body */
-                font-size: inherit; /* Наследуем размер шрифта */
-                white-space: pre-wrap; /* Сохраняем переносы строк */
-                resize: none; /* Запрещаем изменение размера */
-            }
+        /* Share Modal (стили из home.html, если нужно) */
+        /* ... (можно скопировать стили модального окна Share отсюда или импортировать) ... */
+        #sharePopup {
+            display: none;
+            /* Начальное состояние */
+        }
 
-            #editor:focus {
-                outline: 2px solid #007bff;
-            }
-        </style>
+        /* ... скопируй стили для .modal, .modal-content и т.д. из home.html сюда ... */
+        .modal {
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: var(--surface-color);
+            padding: 30px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            color: var(--text-color);
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .close-modal-button {
+            color: var(--text-color-darker);
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-modal-button:hover,
+        .close-modal-button:focus {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .modal .form-group {
+            margin-bottom: 15px;
+        }
+
+        .modal .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--text-color-darker);
+        }
+
+        .modal .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-color);
+            font-size: 0.95rem;
+            box-sizing: border-box;
+        }
+
+        .modal .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.3);
+        }
+
+        .modal .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: var(--text-on-primary);
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .modal .btn-submit:hover {
+            background-color: var(--primary-variant-color);
+        }
+
+        .upload-status {
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+
+        /* Для сообщений в модалке */
+        .upload-status.success {
+            color: var(--success-color);
+        }
+
+        .upload-status.error {
+            color: var(--error-color);
+        }
+    </style>
 </head>
 
 <body>
-
-    <div class="sidebar">
-        <h2>Files</h2>
-        <div class="file-upload">
-            <label for="fileUpload">Choose File</label>
-            <input type="file" id="fileUpload">
-            <div class="progress-bar">
-                <div class="progress-bar-inner"></div>
+    <div class="editor-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="/home" class="sidebar-logo">Deep<span class="highlight">Scriptum</span></a>
+                <!-- Кнопка Upload в сайдбаре -->
+                <input type="file" id="sidebarFileUploadInput" accept=".pdf" />
+                <button type="button" class="sidebar-upload-button" id="sidebarBrowseButton">
+                    <i class="fas fa-plus-circle"></i> New Document
+                </button>
             </div>
-        </div>
-        <ul id="fileList">
-        </ul>
+            <div class="sidebar-file-list-container">
+                <ul id="sidebarFileList">
+                    <!-- Список файлов будет загружен сюда -->
+                </ul>
+            </div>
+        </aside>
+
+        <main class="main-editor-content">
+            <div class="editor-header">
+                <h1 id="documentTitleHeader">Loading document...</h1>
+                <div class="editor-actions">
+                    <button id="saveButton"><i class="fas fa-save"></i> Save</button>
+                    <button id="shareButton"><i class="fas fa-share-alt"></i> Share</button>
+                    <button id="downloadMDButton"><i class="fas fa-download"></i> Download MD</button>
+                    <button id="logoutButton"><i class="fas fa-sign-out-alt"></i> Log Out</button>
+                </div>
+            </div>
+            <div class="editor-panels-container">
+                <textarea id="markdownEditor" class="editor-panel" placeholder="Start typing Markdown..."></textarea>
+                <div id="previewPanel" class="preview-panel"></div>
+            </div>
+        </main>
     </div>
 
-    <div class="content">
-        <div class="content-header">
-            <h1 id="documentTitle"></h1>
-            <div class="button-group">
-                <button onclick="downloadAsMD()" id="downloadButton">Download</button>
-                <button id="shareButton">Share</button>
-                <button id="logoffButton">Log Off</button>
-            </div>
-        </div>
-        <div class="content-area">
-            <textarea id="editor" class="text-area"></textarea>
-            <div id="preview" class="text-area">
-            </div>
+    <!-- Модальное окно Share (такое же, как в home.html) -->
+    <div id="sharePopup" class="modal">
+        <!-- ID изменен на sharePopup для соответствия JS из home.html, если будем его переиспользовать -->
+        <div class="modal-content">
+            <span class="close-modal-button" id="closeShareModalBtn">×</span>
+            <h2>Share "<span id="shareModalDocName"></span>"</h2>
+            <form id="shareForm">
+                <input type="hidden" id="shareDocIdInput" name="docId">
+                <div class="form-group">
+                    <label for="shareUserEmail">User Email:</label>
+                    <input type="email" id="shareUserEmail" name="email" class="form-control" required
+                        placeholder="user@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="shareRoleSelect">Role:</label>
+                    <select id="shareRoleSelect" name="role" class="form-control">
+                        <option value="editor">Editor</option>
+                        <option value="viewer">Viewer</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-submit">Add Access</button>
+            </form>
+            <div id="shareStatusMessage" class="upload-status" style="margin-top: 15px;"></div>
         </div>
     </div>
 
-    <div class="popup" id="sharePopup">
-        <h2>Share Document</h2>
-        <ul id="accessList">
-        </ul>
-        <p>Share link: <a href="#">http://example.com/document</a></p>
-        <div class="access-type">
-            Access type:
-            <select>
-                <option>editor</option>
-                <option>viewer</option>
-                <option>private</option>
-            </select>
-        </div>
-        <button onclick="closePopup()">Close</button>
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
     </div>
 
-    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script>
-        let currentDoc = null;
-        let currentDocId = null;
-        let currentDocName = null;
 
-        async function fetchDocuments() {
-            try {
-                const response = await fetch('http://0.0.0.0:8080/api/documents', {
-                    method: 'GET',
-                    credentials: 'include',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                });
+        const API_BASE_URL = 'http://0.0.0.0:8080/api';
 
-                const data = await response.json();
-                console.log(data)
-                const fileList = document.getElementById('fileList');
-                fileList.innerHTML = '';
 
-                if (Object.keys(data).length === 0) {
-                    fileList.innerHTML = '<li>No documents available. Upload a new file.</li>';
-                } else {
-                    for (const [id, details] of Object.entries(data)) {
-                        const listItem = document.createElement('li');
-                        if (details.s3_md_id === "None") {
-                            listItem.innerHTML = `<a href="#" data-id="${id}" class="loading-file">${details.name} <span class="loading"></span></a>`;
-                            pollFileStatus(id, listItem);
-                        } else {
-                            listItem.innerHTML = `<a href="#" data-id="${id}">${details.name}</a>`;
-                            listItem.addEventListener('click', function(event) {
-                                event.preventDefault();
-                                loadDocument(details.s3_md_id, details.name);
-                            });
-                        }
-                        fileList.appendChild(listItem);
-                    }
+        const markdownEditor = document.getElementById('markdownEditor');
+        const previewPanel = document.getElementById('previewPanel');
+        const documentTitleHeader = document.getElementById('documentTitleHeader');
+        const sidebarFileList = document.getElementById('sidebarFileList');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const saveButton = document.getElementById('saveButton');
+        const shareButton = document.getElementById('shareButton');
+        const downloadMDButton = document.getElementById('downloadMDButton');
+        const logoutButton = document.getElementById('logoutButton');
+        const sidebarBrowseButton = document.getElementById('sidebarBrowseButton');
+        const sidebarFileUploadInput = document.getElementById('sidebarFileUploadInput');
+
+
+        const shareModal = document.getElementById('sharePopup');
+        const shareForm = document.getElementById('shareForm');
+        const shareDocIdInput = document.getElementById('shareDocIdInput');
+        const shareModalDocName = document.getElementById('shareModalDocName');
+        const shareUserEmailInput = document.getElementById('shareUserEmail');
+        const shareRoleSelect = document.getElementById('shareRoleSelect');
+        const shareStatusMessage = document.getElementById('shareStatusMessage');
+        const closeShareModalBtn = document.getElementById('closeShareModalBtn');
+
+
+        let currentOpenDoc = {
+            id: null,
+            name: null,
+            s3_md_id: null,
+            content: '',
+            isDirty: false
+        };
+        let renderTimeout;
+        let saveTimeout;
+
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const authToken = localStorage.getItem("ds_auth_token");
+            if (!authToken) {
+                window.location.href = "/auth/login";
+                return;
+            }
+
+
+            marked.setOptions({
+                breaks: true,
+                gfm: true,
+                highlight: function (code, lang) {
+                    const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                    return hljs.highlight(code, { language, ignoreIllegals: true }).value;
                 }
-            } catch (error) {
-                console.error('Error fetching documents:', error);
+            });
+
+            await loadSidebarDocuments();
+            await loadDocumentFromUrl();
+
+            markdownEditor.addEventListener('input', handleEditorInput);
+            saveButton.addEventListener('click', () => autoSaveDocument(true));
+            shareButton.addEventListener('click', openShareModalForCurrentDoc);
+            downloadMDButton.addEventListener('click', downloadCurrentDocAsMD);
+            logoutButton.addEventListener('click', handleLogout);
+
+            sidebarBrowseButton.addEventListener('click', () => sidebarFileUploadInput.click());
+            sidebarFileUploadInput.addEventListener('change', handleSidebarFileUpload);
+
+            if (closeShareModalBtn) closeShareModalBtn.addEventListener('click', closeShareModalHandler);
+            if (shareModal) shareModal.addEventListener('click', (event) => { if (event.target === shareModal) closeShareModalHandler(); });
+            window.addEventListener('keydown', (event) => { if (event.key === 'Escape' && shareModal && shareModal.style.display === 'flex') closeShareModalHandler(); });
+            if (shareForm) shareForm.addEventListener('submit', handleShareFormSubmit);
+        });
+
+
+        async function loadDocumentFromUrl() {
+            const pathSegments = window.location.pathname.split('/');
+            const docIdFromUrl = pathSegments[pathSegments.length - 1];
+
+            if (docIdFromUrl && docIdFromUrl !== 'editor' && docIdFromUrl !== 'new') {
+                await fetchAndDisplayDocument(docIdFromUrl);
+            } else if (docIdFromUrl === 'new') {
+
+                currentOpenDoc = { id: 'new', name: 'New Document', s3_md_id: null, content: '', isDirty: false };
+                updateEditorWithDocData();
+                documentTitleHeader.textContent = currentOpenDoc.name;
+
+            } else {
+                documentTitleHeader.textContent = "Select a document or create new";
+                markdownEditor.value = "";
+                previewPanel.innerHTML = "";
+
+                const firstDocLink = sidebarFileList.querySelector('li a');
+                if (firstDocLink) {
+                    await fetchAndDisplayDocument(firstDocLink.dataset.docId);
+                }
             }
         }
 
-        async function pollFileStatus(id, listItem) {
-            const interval = setInterval(async () => {
-                try {
-                    const response = await fetch(`http://0.0.0.0:8080/api/documents/${id}/status`, {
-                        method: 'GET',
-                        credentials: 'include',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                    });
-                    const status = await response.json();
 
-                    if (status.s3_md_id && status.s3_md_id !== "0") {
-                        clearInterval(interval);
-                        listItem.innerHTML = `<a href="#" data-id="${id}">${listItem.textContent.trim()}</a>`;
-                        listItem.addEventListener('click', function(event) {
-                            event.preventDefault();
-                            console.log(status)
-                            loadDocument(status.s3_md_id, listItem.textContent.trim());
-                        });
-                    }
-                } catch (error) {
-                    console.error(`Error fetching status for document ${id}:`, error);
+        async function fetchAndDisplayDocument(docDbId) {
+            if (!docDbId || docDbId === 'new') return;
+
+
+            if (currentOpenDoc.id && currentOpenDoc.id !== docDbId && currentOpenDoc.isDirty) {
+                if (!confirm("You have unsaved changes in the current document. Are you sure you want to switch?")) {
+                    return;
                 }
-            }, 5000);
+            }
+
+            showLoadingOverlay(true);
+            const token = localStorage.getItem("ds_auth_token");
+            try {
+
+                const response = await fetch(`${API_BASE_URL}/documents/${docDbId}/content`, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+                });
+                if (!response.ok) {
+                    if (response.status === 401) { window.location.href = "/auth/login"; return; }
+                    const errData = await response.json().catch(() => ({ detail: `Error loading document (Status: ${response.status})` }));
+                    throw new Error(errData.detail || `Failed to load document.`);
+                }
+                const data = await response.json();
+                currentOpenDoc = {
+                    id: data.id,
+                    name: data.name,
+                    s3_md_id: data.s3_md_id,
+                    content: data.content,
+                    isDirty: false
+                };
+                updateEditorWithDocData();
+
+                history.pushState({ docId: data.id }, data.name, `/editor/${data.id}`);
+                setActiveSidebarItem(data.id);
+
+            } catch (error) {
+                console.error("Error fetching document:", error);
+                documentTitleHeader.textContent = "Error loading document";
+                markdownEditor.value = `# Error \n\n ${error.message}`;
+                renderMarkdown();
+            } finally {
+                showLoadingOverlay(false);
+            }
         }
 
-        async function loadDocument(id, name) {
+        function updateEditorWithDocData() {
+            markdownEditor.value = currentOpenDoc.content;
+            documentTitleHeader.textContent = currentOpenDoc.name || "Untitled Document";
+            renderMarkdown();
+            currentOpenDoc.isDirty = false;
+            updateSaveButtonState();
+        }
+
+
+        function renderMarkdown() {
+            previewPanel.innerHTML = marked.parse(markdownEditor.value);
+
+            previewPanel.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        }
+
+        function handleEditorInput() {
+            currentOpenDoc.isDirty = true;
+            updateSaveButtonState();
+            clearTimeout(renderTimeout);
+            renderTimeout = setTimeout(renderMarkdown, 300);
+
+
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => autoSaveDocument(false), 3000);
+        }
+
+        function updateSaveButtonState() {
+            if (currentOpenDoc.isDirty) {
+                saveButton.innerHTML = '<i class="fas fa-save"></i> Save*';
+                saveButton.style.borderColor = 'var(--secondary-color)';
+            } else {
+                saveButton.innerHTML = '<i class="fas fa-save"></i> Save';
+                saveButton.style.borderColor = 'var(--text-color-darker)';
+            }
+        }
+
+        async function autoSaveDocument(forceSave = false) {
+            if ((!currentOpenDoc.isDirty && !forceSave) || !currentOpenDoc.id || currentOpenDoc.id === 'new') {
+                if (currentOpenDoc.id === 'new' && forceSave) {
+                    alert("Saving a new document is not fully implemented yet. It needs to be created on the server first.");
+                }
+                return;
+            }
+            if (!currentOpenDoc.s3_md_id) {
+                console.warn("Cannot save, document s3_md_id is missing.");
+                alert("Cannot save document: critical metadata is missing.");
+                return;
+            }
+
+            const token = localStorage.getItem("ds_auth_token");
+            const contentToSave = markdownEditor.value;
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
             try {
-                const response = await fetch(`http://0.0.0.0:8080/api/documents/${id}`, {
-                    method: 'GET',
-                    credentials: 'include',
+                const response = await fetch(`${API_BASE_URL}/documents/${currentOpenDoc.s3_md_id}`, {
+                    method: 'PUT',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
                     },
+                    body: JSON.stringify({ content: contentToSave })
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    if (response.status === 401) { window.location.href = "/auth/login"; return; }
+                    const errData = await response.json().catch(() => ({ detail: `Error saving (Status: ${response.status})` }));
+                    throw new Error(errData.detail || "Failed to save document.");
                 }
+                currentOpenDoc.content = contentToSave;
+                currentOpenDoc.isDirty = false;
+                updateSaveButtonState();
+                console.log("Document saved successfully.");
 
-                const doc = await response.json();
-                currentDoc = doc;
-                currentDocId = id;
-                currentDocName = name;
-
-                document.getElementById('editor').value = doc.content;
-                document.getElementById('documentTitle').textContent = name;
-                renderMarkdown();
             } catch (error) {
-                console.error(`Error loading document ${id}:`, error);
+                console.error("Error saving document:", error);
+                alert(`Error saving document: ${error.message}`);
+                saveButton.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error';
+                setTimeout(updateSaveButtonState, 2000);
             }
         }
 
-        let renderTimeout;
 
-        function renderMarkdown() {
-            const markdownText = document.getElementById('editor').value;
-            const html = marked.parse(markdownText);
-            document.getElementById('preview').innerHTML = html;
-            hljs.highlightAll();
+
+        async function loadSidebarDocuments() {
+            const token = localStorage.getItem("ds_auth_token");
+            sidebarFileList.innerHTML = '<li>Loading files...</li>';
+            try {
+                const response = await fetch(`${API_BASE_URL}/documents/`, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+                });
+                if (!response.ok) {
+                    if (response.status === 401) { window.location.href = "/auth/login"; return; }
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+                sidebarFileList.innerHTML = '';
+
+                if (Object.keys(data).length === 0) {
+                    sidebarFileList.innerHTML = '<li>No documents yet.</li>';
+                    return;
+                }
+                for (const docDbId in data) {
+                    const docDetails = data[docDbId];
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    a.href = `/editor/${docDbId}`;
+                    a.dataset.docId = docDbId;
+                    a.dataset.s3MdId = docDetails.s3_md_id;
+
+                    let iconClass = 'fa-file-alt';
+                    let spinnerHtml = '';
+                    if (docDetails.s3_md_id === "0" || docDetails.s3_md_id === null || docDetails.s3_md_id === "None") {
+                        iconClass = 'fa-history';
+                        spinnerHtml = '<span class="spinner"></span>';
+
+
+                    }
+
+                    a.innerHTML = `<span class="file-icon"><i class="fas ${iconClass}"></i></span> ${docDetails.name || 'Untitled'} ${spinnerHtml}`;
+
+                    a.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        fetchAndDisplayDocument(docDbId);
+                    });
+                    li.appendChild(a);
+                    sidebarFileList.appendChild(li);
+                }
+                setActiveSidebarItem(currentOpenDoc.id);
+
+            } catch (error) {
+                console.error("Error loading sidebar documents:", error);
+                sidebarFileList.innerHTML = '<li>Error loading files.</li>';
+            }
         }
 
-        document.getElementById('editor').addEventListener('input', function() {
-            clearTimeout(renderTimeout);
-            renderTimeout = setTimeout(renderMarkdown, 1500);
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchDocuments();
-        });
-
-        function eraseCookie(name) {
-            document.cookie = name + '=; Max-Age=-99999999;';
+        function setActiveSidebarItem(docDbId) {
+            sidebarFileList.querySelectorAll('a').forEach(link => {
+                link.classList.remove('active');
+                if (link.dataset.docId === docDbId) {
+                    link.classList.add('active');
+                }
+            });
         }
 
-        document.getElementById('logoffButton').addEventListener('click', function () {
-            eraseCookie("ds_auth")
-            window.location.href = "/";
-        });
 
-        function closePopup() {
-            const popup = document.getElementById('sharePopup');
-            popup.style.display = 'none';
-        }
-        function downloadAsMD(fileName = `${currentDocName}.md`) {
-            // Создаем Blob из текста с типом 'text/markdown'
-            const blob = new Blob([currentDoc.content], { type: 'text/markdown' });
-          
-            // Создаем временный URL для Blob
-            const url = window.URL.createObjectURL(blob);
-          
-            // Создаем скрытую ссылку для скачивания
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = fileName; // Имя файла
-            document.body.appendChild(link);
-          
-            // Эмулируем клик для скачивания
-            link.click();
-          
-            // Удаляем ссылку и освобождаем память
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
-          }
-
-        document.getElementById('fileUpload').addEventListener('change', async function (e) {
-            const file = e.target.files[0];
+        async function handleSidebarFileUpload(event) {
+            const file = event.target.files[0];
             if (!file) return;
 
+            if (file.type !== "application/pdf") {
+                alert("Only PDF files are allowed.");
+                sidebarFileUploadInput.value = '';
+                return;
+            }
+
+
+            const token = localStorage.getItem("ds_auth_token");
             const formData = new FormData();
             formData.append('document', file);
 
             try {
-                const response = await fetch('http://0.0.0.0:8080/api/documents/ocr', {
+                const response = await fetch(`${API_BASE_URL}/documents/ocr`, {
                     method: 'POST',
-                    credentials: 'include',
+                    headers: { 'Authorization': `Bearer ${token}` },
                     body: formData
                 });
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({ detail: "Upload failed" }));
+                    throw new Error(errData.detail);
+                }
+                const result = await response.json();
 
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                await loadSidebarDocuments();
 
-                window.location.reload();
+
+                alert(`File "${file.name}" uploaded. Task ID: ${result.doc_id}. It will appear in the list once processed.`);
 
             } catch (error) {
-                console.error('Upload failed:', error);
-                listItem.innerHTML = `<a style="color: #dc3545">Error uploading ${file.name}</a>`;
+                console.error("Sidebar upload error:", error);
+                alert(`Error uploading file: ${error.message}`);
             } finally {
-                e.target.value = '';
+                sidebarFileUploadInput.value = '';
             }
-        });
-    </script>
+        }
 
+
+
+        function showLoadingOverlay(show) {
+            loadingOverlay.style.display = show ? 'flex' : 'none';
+        }
+
+        function handleLogout() {
+            localStorage.removeItem("ds_auth_token");
+            window.location.href = "/";
+        }
+
+        function downloadCurrentDocAsMD() {
+            if (!currentOpenDoc || currentOpenDoc.id === 'new') {
+                alert("No document is open or it's a new unsaved document.");
+                return;
+            }
+            const markdownContent = markdownEditor.value;
+            const fileName = (currentOpenDoc.name || "document") + ".md";
+            const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", fileName);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }
+        }
+
+
+        function openShareModalForCurrentDoc() {
+            if (!currentOpenDoc || !currentOpenDoc.id || currentOpenDoc.id === 'new') {
+                alert("Please open or save a document before sharing.");
+                return;
+            }
+
+            if (shareDocIdInput) shareDocIdInput.value = currentOpenDoc.id;
+            if (shareModalDocName) shareModalDocName.textContent = currentOpenDoc.name || "Untitled";
+            if (shareUserEmailInput) shareUserEmailInput.value = '';
+            if (shareRoleSelect) shareRoleSelect.value = 'editor';
+            if (shareStatusMessage) {
+                shareStatusMessage.textContent = '';
+                shareStatusMessage.className = 'upload-status';
+            }
+            if (shareModal) shareModal.style.display = 'flex';
+        }
+
+        function closeShareModalHandler() {
+            if (shareModal) shareModal.style.display = 'none';
+        }
+
+        async function handleShareFormSubmit(event) {
+            event.preventDefault();
+            const docId = shareDocIdInput.value;
+            const email = shareUserEmailInput.value;
+            const role = shareRoleSelect.value;
+            const token = localStorage.getItem("ds_auth_token");
+
+            if (!token) { /* ... обработка ошибки ... */ return; }
+
+            if (shareStatusMessage) {
+                shareStatusMessage.textContent = "Sharing...";
+                shareStatusMessage.className = 'upload-status';
+
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/documents/${docId}/share`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ email: email, role: role })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || `HTTP error ${response.status}`);
+
+                if (shareStatusMessage) {
+                    shareStatusMessage.textContent = data.message || "Access granted!";
+                    shareStatusMessage.classList.add('success');
+                }
+            } catch (error) {
+                console.error('Share error:', error);
+                if (shareStatusMessage) {
+                    shareStatusMessage.textContent = `Error: ${error.message}`;
+                    shareStatusMessage.classList.add('error');
+                }
+            }
+        }
+
+    </script>
 </body>
 
 </html>

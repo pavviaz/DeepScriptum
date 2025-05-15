@@ -7,6 +7,7 @@ from celery import Celery
 from openai import OpenAI
 import boto3
 from sqlalchemy import update
+import httpx
 
 import config
 import settings
@@ -20,7 +21,7 @@ REPLACERS = {"latex": config.LATEX_REPLACER, "md": config.MD_REPLACER}
 
 client = OpenAI(
     api_key=settings.app_settings.OPENAI_KEY,
-    base_url=settings.app_settings.BASE_OPENAI_URL,
+    http_client=httpx.Client(proxy=settings.app_settings.PROXY),
 )
 
 celery = Celery(__name__)

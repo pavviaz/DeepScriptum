@@ -1,354 +1,796 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 
 <head>
-	<!-- Site made with Mobirise Website Builder v5.9.25, https://mobirise.com -->
-	<meta charset="UTF-8">
-	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<meta name="generator" content="Mobirise v5.9.25, mobirise.com">
-	<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-	<link rel="shortcut icon" href="/assets/images/logo5.png" type="image/x-icon">
-	<meta name="description" content="">
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+    <!-- Пример простого SVG favicon -->
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
+    <meta name="description" content="DeepScriptum - трансформируйте любой файл в .md с помощью AI.">
 
-	<title>Home</title>
-	<link rel="stylesheet" href="/assets/web//assets/mobirise-icons/mobirise-icons.css">
-	<link rel="stylesheet" href="/assets/bootstrap/css/bootstrap.min.css">
-	<link rel="stylesheet" href="/assets/bootstrap/css/bootstrap-grid.min.css">
-	<link rel="stylesheet" href="/assets/bootstrap/css/bootstrap-reboot.min.css">
-	<link rel="stylesheet" href="/assets/animatecss/animate.css">
-	<link rel="stylesheet" href="/assets/socicon/css/styles.css">
-	<link rel="stylesheet" href="/assets/theme/css/style.css">
-	<link rel="preload"
-		href="https://fonts.googleapis.com/css?family=Inter+Tight:100,200,300,400,500,600,700,800,900,100i,200i,300i,400i,500i,600i,700i,800i,900i&display=swap"
-		as="style" onload="this.onload=null;this.rel='stylesheet'">
-	<noscript>
-		<link rel="stylesheet"
-			href="https://fonts.googleapis.com/css?family=Inter+Tight:100,200,300,400,500,600,700,800,900,100i,200i,300i,400i,500i,600i,700i,800i,900i&display=swap">
-	</noscript>
-	<link rel="preload" as="style" href="/assets/mobirise/css/mbr-additional.css?v=kKeZAt">
-	<link rel="stylesheet" href="/assets/mobirise/css/mbr-additional.css?v=kKeZAt" type="text/css">
+    <title>DeepScriptum - Главная</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Roboto+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Font Awesome (для иконок) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Bootstrap (только Grid и Reboot для основы, остальное кастомно) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap-reboot.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap-grid.min.css">
+
+    <style>
+        :root {
+            --bg-color: #121212;
+            /* Очень темный серый, почти черный */
+            --surface-color: #1e1e1e;
+            /* Темно-серый для карточек и элементов */
+            --primary-color: #6200EE;
+            /* Яркий фиолетовый акцент */
+            --primary-variant-color: #3700B3;
+            /* Более темный фиолетовый */
+            --secondary-color: #03DAC6;
+            /* Бирюзовый для второстепенных акцентов */
+            --text-color: #E0E0E0;
+            /* Светло-серый для основного текста */
+            --text-color-darker: #BDBDBD;
+            /* Темнее для второстепенного текста */
+            --text-on-primary: #FFFFFF;
+            --border-color: #333333;
+            --font-main: 'Inter', sans-serif;
+            --font-mono: 'Roboto Mono', monospace;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            /* Предотвращает горизонтальный скролл */
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+            padding-left: 15px;
+            padding-right: 15px;
+        }
+
+        /* --- Animations --- */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fadeInUp {
+            opacity: 0;
+            /* Start hidden */
+            /* animation: fadeInUp 0.8s ease-out forwards; Removed direct animation for observer */
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+            /* Added for observer */
+        }
+
+        .animate-fadeInUp.in-view {
+            /* Class added by observer */
+            opacity: 1;
+            transform: translateY(0);
+        }
 
 
+        /* --- Navigation Bar --- */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px 0;
+            background-color: rgba(18, 18, 18, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            transition: background-color 0.3s ease;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .navbar .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-color);
+            text-decoration: none;
+            letter-spacing: -1px;
+        }
+
+        .navbar-brand .highlight {
+            color: var(--primary-color);
+        }
+
+        .nav-links a,
+        .nav-links button {
+            color: var(--text-color);
+            text-decoration: none;
+            margin-left: 20px;
+            padding: 10px 20px;
+            border: 1px solid transparent;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            background: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .nav-links button {
+            /* для logout */
+            font-family: var(--font-main);
+        }
+
+        .nav-links a:hover,
+        .nav-links button:hover {
+            border-color: var(--primary-color);
+            background-color: var(--primary-color);
+            color: var(--text-on-primary);
+        }
+
+        .nav-links .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: var(--text-on-primary);
+        }
+
+        .nav-links .btn-primary:hover {
+            background-color: var(--primary-variant-color);
+            border-color: var(--primary-variant-color);
+        }
+
+        /* --- Hero Section --- */
+        .hero-section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding-top: 100px;
+            /* Учитываем высоту навбара */
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-section::before {
+            /* subtle background gradient/pattern */
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 10% 20%, rgba(98, 0, 238, 0.15), transparent 50%),
+                radial-gradient(circle at 90% 80%, rgba(3, 218, 198, 0.1), transparent 50%);
+            z-index: -1;
+            animation: subtleShine 15s infinite alternate ease-in-out;
+        }
+
+        @keyframes subtleShine {
+            0% {
+                opacity: 0.7;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.05);
+            }
+
+            100% {
+                opacity: 0.7;
+                transform: scale(1);
+            }
+        }
+
+        .hero-content {
+            /* Removed direct animation for observer on parent if needed, or keep if hero is always visible */
+            animation: fadeInUp 1s 0.2s ease-out forwards;
+            opacity: 0;
+        }
+
+        .hero-section h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin-bottom: 20px;
+            line-height: 1.2;
+            letter-spacing: -2px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+        }
+
+        .hero-section .subtitle {
+            font-size: 1.5rem;
+            color: var(--text-color-darker);
+            margin-bottom: 40px;
+            font-weight: 300;
+        }
+
+        .hero-button {
+            display: inline-block;
+            padding: 15px 40px;
+            background-color: var(--primary-color);
+            color: var(--text-on-primary);
+            text-decoration: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(98, 0, 238, 0.3);
+        }
+
+        .hero-button:hover {
+            background-color: var(--primary-variant-color);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(98, 0, 238, 0.4);
+        }
+
+        .hero-scroll-down {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2rem;
+            color: var(--text-color-darker);
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            20%,
+            50%,
+            80%,
+            100% {
+                transform: translateX(-50%) translateY(0);
+            }
+
+            40% {
+                transform: translateX(-50%) translateY(-10px);
+            }
+
+            60% {
+                transform: translateX(-50%) translateY(-5px);
+            }
+        }
 
 
+        /* --- Section Generic Styles --- */
+        .section {
+            padding: 80px 0;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--text-color);
+        }
+
+        .section-subtitle {
+            text-align: center;
+            font-size: 1.1rem;
+            color: var(--text-color-darker);
+            max-width: 700px;
+            margin: 0 auto 60px auto;
+            line-height: 1.6;
+        }
+
+        /* --- Features Section --- */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+        }
+
+        .feature-card {
+            background-color: var(--surface-color);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.8s ease-out, transform 0.8s ease-out;
+            opacity: 0;
+            /* For scroll animation */
+            transform: translateY(20px);
+            /* Initial state for animation */
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            /* Keep hover effect, might need adjustment with observer */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .feature-card.in-view {
+            /* Ensure hover transform doesn't conflict */
+            transform: translateY(0px);
+        }
+
+        .feature-card.in-view:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-card .icon {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-color);
+        }
+
+        .feature-card p {
+            font-size: 0.95rem;
+            color: var(--text-color-darker);
+            line-height: 1.6;
+        }
+
+        .feature-card .card-link {
+            display: inline-block;
+            margin-top: 15px;
+            color: var(--secondary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .feature-card .card-link:hover {
+            text-decoration: underline;
+        }
+
+        /* --- "Why Us" Section --- */
+        .benefit-card {
+            background-color: transparent;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid transparent;
+            opacity: 0;
+            /* For scroll animation */
+            transform: translateY(20px);
+            /* Initial state for animation */
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+
+        .benefit-card .icon {
+            font-size: 3rem;
+            /* Крупнее иконка */
+            color: var(--secondary-color);
+            /* Другой акцентный цвет */
+            margin-bottom: 15px;
+        }
+
+        .benefit-card h3 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .benefit-card p {
+            font-size: 0.9rem;
+            color: var(--text-color-darker);
+        }
+
+        /* --- Contact Form --- */
+        .contact-form-container {
+            background-color: var(--surface-color);
+            padding: 40px;
+            border-radius: 12px;
+            max-width: 700px;
+            margin: 0 auto;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            /* For scroll animation */
+            transform: translateY(20px);
+            /* Initial state for animation */
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-color-darker);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            background-color: var(--bg-color);
+            /* Темнее чем фон карточки */
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-color);
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+            /* To include padding and border in the element's total width and height */
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.3);
+        }
+
+        textarea.form-control {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .btn-submit {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background-color: var(--primary-color);
+            color: var(--text-on-primary);
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-submit:hover {
+            background-color: var(--primary-variant-color);
+        }
+
+        /* --- Footer --- */
+        .footer {
+            padding: 40px 0;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .social-links a {
+            color: var(--text-color-darker);
+            font-size: 1.5rem;
+            margin: 0 10px;
+            transition: color 0.3s ease;
+        }
+
+        .social-links a:hover {
+            color: var(--primary-color);
+        }
+
+        .footer p {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: var(--text-color-darker);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .navbar .container {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .navbar-brand {
+                margin-bottom: 10px;
+            }
+
+            .nav-links {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                /* кнопки друг под другом на мобилке */
+                align-items: flex-start;
+                /* выравнивание по левому краю */
+            }
+
+            .nav-links a,
+            .nav-links button {
+                margin-left: 0;
+                margin-top: 10px;
+                width: 100%;
+                /* кнопки на всю ширину */
+                text-align: center;
+                box-sizing: border-box;
+            }
+
+            .hero-section h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero-section .subtitle {
+                font-size: 1.2rem;
+            }
+
+            .section-title {
+                font-size: 2rem;
+            }
+
+            .contact-form-container .row .col-md-6 {
+                /* Stack form fields on mobile */
+                width: 100%;
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+        }
+    </style>
 </head>
 
 <body>
 
-	<section data-bs-version="5.1" class="header5 cid-tJS6uM4N87" id="header05-1">
+    <header class="navbar">
+        <div class="container">
+            <a href="/" class="navbar-brand">Deep<span class="highlight">Scriptum</span></a>
+            <nav class="nav-links">
+                <a id="signin_button" href="#">Sign In</a>
+                <a id="signup_button" href="/auth/register" class="btn-primary">Sign Up</a>
+                <button id="logout_button" style="display: none;">Log Out</button>
+            </nav>
+        </div>
+    </header>
 
+    <main>
+        <section class="hero-section" id="home">
+            <div class="container">
+                <div class="hero-content">
+                    <h1><strong>DeepScriptum.</strong><br>Transform any file to .md</h1>
+                    <p class="subtitle">AI-powered collaborative document transformation and editing.</p>
+                    <a id="try_button" href="#" class="hero-button">Try It Out</a>
+                </div>
+            </div>
+            <a href="#about" class="hero-scroll-down" aria-label="Scroll down">
+                <i class="fas fa-chevron-down"></i>
+            </a>
+        </section>
 
+        <section class="section" id="about">
+            <div class="container">
+                <h2 class="section-title animate-fadeInUp">About DeepScriptum</h2>
+                <p class="section-subtitle animate-fadeInUp" style="animation-delay: 0.2s;">
+                    DeepScriptum is an advanced project designed to seamlessly convert various document types (like PDF)
+                    into Markdown (.md) format using OCR and AI.
+                    It enables real-time collaborative editing, perfect for developers, writers, and teams looking to
+                    streamline documentation and content creation.
+                </p>
+                <div class="features-grid">
+                    <div class="feature-card animate-fadeInUp" style="animation-delay: 0.4s;">
+                        <span class="icon"><i class="fas fa-cogs"></i></span>
+                        <h3>Powerful OCR & AI</h3>
+                        <p>Accurately extract text and structure from your documents, converting them into clean
+                            Markdown.</p>
+                    </div>
+                    <div class="feature-card animate-fadeInUp" style="animation-delay: 0.6s;">
+                        <span class="icon"><i class="fas fa-users"></i></span>
+                        <h3>Real-time Collaboration</h3>
+                        <p>Work together with your team on the same document simultaneously, seeing changes as they
+                            happen.</p>
+                    </div>
+                    <div class="feature-card animate-fadeInUp" style="animation-delay: 0.8s;">
+                        <a href="https://github.com/pavviaz/DeepScriptum" target="_blank" rel="noopener noreferrer"
+                            class="card-link-wrapper" style="text-decoration:none; color: inherit;">
+                            <span class="icon"><i class="fab fa-github"></i></span>
+                            <h3>Open Source</h3>
+                            <p>Our project is open source. Check out the code, contribute, or report issues on GitHub.
+                            </p>
+                            <span class="card-link">View on GitHub <i class="fas fa-arrow-right"></i></span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
 
+        <section class="section" id="why-us" style="background-color: var(--surface-color);">
+            <div class="container">
+                <h2 class="section-title animate-fadeInUp">Key Advantages</h2>
+                <div class="features-grid">
+                    <div class="benefit-card animate-fadeInUp" style="animation-delay: 0.2s;">
+                        <div class="icon"><i class="fas fa-bolt"></i></div>
+                        <h3>Fast Conversion</h3>
+                        <p>Quickly transform your documents and get to editing in no time.</p>
+                    </div>
+                    <div class="benefit-card animate-fadeInUp" style="animation-delay: 0.4s;">
+                        <div class="icon"><i class="fas fa-check-circle"></i></div>
+                        <h3>High Quality Output</h3>
+                        <p>AI-enhanced processing ensures accurate and well-structured Markdown.</p>
+                    </div>
+                    <div class="benefit-card animate-fadeInUp" style="animation-delay: 0.6s;">
+                        <div class="icon"><i class="fas fa-mouse-pointer"></i></div>
+                        <h3>Intuitive Interface</h3>
+                        <p>Easy-to-use platform, designed for productivity and simplicity.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-		<div class="topbg"></div>
-		<div class="align-center container">
+        <section class="section" id="contact">
+            <div class="container">
+                <h2 class="section-title animate-fadeInUp">Contact Us</h2>
+                <p class="section-subtitle animate-fadeInUp" style="animation-delay: 0.1s;">Have questions or feedback?
+                    We'd love to hear from you.</p>
 
-			<!-- Навигационное меню -->
-			<div class="row">
-				<div class="col-12 d-flex justify-content-end">
-					<div id="signin_button" class="mbr-section-btn mt-5"><a class="btn btn-primary display-7">Sign
-							in</a></div>
-					<div id="signup_button" class="mbr-section-btn mt-5 ms-2"><a class="btn btn-primary display-7"
-							href="/auth/register">Sign up</a></div>
-                    <div id="logout_button" class="mbr-section-btn mt-5 ms-2" style="display: none;"><a class="btn btn-primary display-7"
-                        >Log out</a></div>
-				</div>
-			</div>
-			<!-- Конец навигационного меню -->
+                <div class="contact-form-container animate-fadeInUp" style="animation-delay: 0.2s;">
+                    <form action="mailto:sha.cehca@yandex.ru" method="POST" enctype="text/plain">
+                        <div class="row">
+                            <div class="col-md-6 form-group">
+                                <label for="name-form">Name</label>
+                                <input type="text" name="name" placeholder="Your Name" class="form-control" value=""
+                                    id="name-form">
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label for="email-form">Email</label>
+                                <input type="email" name="email" placeholder="Your Email" class="form-control" value=""
+                                    id="email-form">
+                            </div>
+                            <div class="col-12 form-group">
+                                <label for="phone-form">Phone (Optional)</label>
+                                <input type="tel" name="phone" placeholder="Your Phone" class="form-control" value=""
+                                    id="phone-form">
+                            </div>
+                            <div class="col-12 form-group">
+                                <label for="message-form">Message</label>
+                                <textarea name="message" placeholder="Your Message" class="form-control"
+                                    id="message-form"></textarea>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn-submit">Send Message</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
 
-			<div class="row justify-content-center">
-				<div class="col-md-12 col-lg-9">
-					<h1 class="mbr-section-title mbr-fonts-style mb-5 display-1">
-						<strong>DeepScriptum.</strong><br><strong>Transform any file to .md</strong><br></h1>
-					<p class="mbr-text mbr-fonts-style mb-4 display-7"> </p>
-					<div id="try_button" class="mbr-section-btn mt-3"><a class="btn btn-primary display-7">Try It Out</a></div>
-				</div>
-			</div>
-			<div class="row mt-5 justify-content-center">
-				<div class="col-12 col-lg-12">
-					<img src="/assets/images/ds_logo_book.png" alt="Mobirise Website Builder" title="" width="10"
-						height="1500" class="logo-image mx-auto d-block">
-				</div>
-			</div>
-		</div>
-	</section>
+    <footer class="footer">
+        <div class="container">
+            <div class="social-links">
+                <a href="https://github.com/pavviaz/DeepScriptum" target="_blank" rel="noopener noreferrer"
+                    aria-label="GitHub">
+                    <i class="fab fa-github"></i>
+                </a>
+                <!-- Добавь сюда другие соцсети, если нужно -->
+            </div>
+            <p>© <span id="currentYear"></span> DeepScriptum. All Rights Reserved. </p>
+            <p style="font-size: 0.8em; opacity: 0.7;">Designed for a diploma project.</p>
+        </div>
+    </footer>
 
-	<section data-bs-version="5.1" class="features4 cid-tMlEXTHLbS" id="features04-w">
+    <script>
 
-		<div class="container">
-			<div class="row justify-content-center">
-				<div class="col-12 content-head">
-					<div class="mbr-section-head mb-5">
-						<h4 class="mbr-section-title mbr-fonts-style align-center mb-0 display-2"><strong>Our
-								Services</strong></h4>
-						<h5 class="mbr-section-subtitle mbr-fonts-style align-center mb-0 mt-4 display-7">DeepScriptum
-							is an advanced project designed to seamlessly convert any type of document into Markdown
-							(.md) format. Utilizing cutting-edge AI technology, it ensures accurate and efficient
-							translation while preserving the original structure and content. Ideal for developers,
-							writers, and businesses, DeepScriptum streamlines documentation processes and enhances
-							collaboration.</h5>
+        function eraseCookie(name) {
+            document.cookie = name + '=; Max-Age=-99999999; path=/;';
+        }
 
-					</div>
-				</div>
-			</div>
-			<div class="row">
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
 
-				<div class="item features-image col-12 col-md-6 col-lg-4 active">
-					<div class="item-wrapper">
-						<div class="item-img">
-							<a href="https://github.com/pavviaz/DeepScriptum" target="_blank"><img
-									src="/assets/images/25231-512x512.png" alt="github" data-slide-to="0"
-									data-bs-slide-to="0"></a>
-						</div>
-						<div class="item-content">
-							<h5 class="item-title mbr-fonts-style display-5">
-								<p>
-									                <strong>GitHub</strong></p>
-							</h5>
-
-							<p class="mbr-text mbr-fonts-style display-7"> </p>
-							<div class="mbr-section-btn item-footer"><a href=""
-									class="btn item-btn btn-primary display-7">Learn more</a></div>
-						</div>
-					</div>
-				</div>
-				<div class="item features-image col-12 col-md-6 col-lg-4 active">
-					<div class="item-wrapper">
-						<div class="item-img">
-							<a href="https://github.com/pavviaz/DeepScriptum" target="_blank"><img
-									src="/assets/images/logo-1.webp" alt="github" data-slide-to="1"
-									data-bs-slide-to="1"></a>
-						</div>
-						<div class="item-content">
-							<h5 class="item-title mbr-fonts-style display-5">
-								<p>
-									                <strong>Service</strong></p>
-							</h5>
-
-							<p class="mbr-text mbr-fonts-style display-7"> </p>
-							<div class="mbr-section-btn item-footer"><a href=""
-									class="btn item-btn btn-primary display-7">Try it out</a></div>
-						</div>
-					</div>
-				</div>
-				<div class="item features-image col-12 col-md-6 col-lg-4">
-					<div class="item-wrapper">
-						<div class="item-img">
-							<a href="https://github.com/pavviaz/DeepScriptum" target="_blank"><img
-									src="/assets/images/mbr-1-1920x1143.png" alt="github" data-slide-to="2"
-									data-bs-slide-to="3"></a>
-						</div>
-						<div class="item-content">
-							<h5 class="item-title mbr-fonts-style display-5">
-								<p>
-									              <strong>Contact us</strong></p>
-							</h5>
-
-							<p class="mbr-text mbr-fonts-style display-7"> </p>
-							<div class="mbr-section-btn item-footer"><a href=""
-									class="btn item-btn btn-primary display-7">Contact</a></div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</section>
-
-	<section data-bs-version="5.1" class="features15 cid-tLek7gQhG7" id="features015-m">
-
-
-
-
-		<div class="container">
-			<div class="mbr-section-head mb-5">
-				<h4 class="mbr-section-title mbr-fonts-style align-center mb-0 display-2">
-					<strong>Why us?</strong>
-				</h4>
-
-			</div>
-			<div class="row justify-content-center">
-				<div class="item features-without-image col-12 col-lg-4">
-					<div class="item-wrapper">
-						<div class="img-wrapper">
-							<img src="/assets/images/mbr-2-179x194.png" alt="Mobirise Website Builder">
-						</div>
-						<div class="card-box">
-							<h4 class="card-title mbr-fonts-style mb-3 display-5">
-								<strong>Fast</strong>
-							</h4>
-							<h5 class="card-text mbr-fonts-style display-7">
-								Service provides fast transformation of any file to .md</h5>
-						</div>
-					</div>
-				</div>
-				<div class="item features-without-image col-12 col-lg-4">
-					<div class="item-wrapper">
-						<div class="img-wrapper">
-							<img src="/assets/images/mbr-1-179x179.png" alt="Mobirise Website Builder">
-						</div>
-						<div class="card-box">
-							<h4 class="card-title mbr-fonts-style mb-3 display-5">
-								<strong>Qualitative</strong>
-							</h4>
-							<h5 class="card-text mbr-fonts-style display-7">The program allows you to quickly transform
-								files<br><br></h5>
-						</div>
-					</div>
-				</div>
-				<div class="item features-without-image col-12 col-lg-4">
-					<div class="item-wrapper">
-						<div class="img-wrapper">
-							<img src="/assets/images/mbr-179x179.png" alt="Mobirise Website Builder">
-						</div>
-						<div class="card-box">
-							<h4 class="card-title mbr-fonts-style mb-3 display-5">
-								<strong>Easy</strong>
-							</h4>
-							<h5 class="card-text mbr-fonts-style display-7">
-								Easy to use interface</h5>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</section>
-
-	<section data-bs-version="5.1" class="form5 cid-tJS9pBcTSa" id="form02-6">
-
-		<div class="container">
-			<div class="mbr-section-head mb-5">
-				<h3 class="mbr-section-title mbr-fonts-style align-center mb-0 display-2">
-					<strong>Contact us</strong>
-				</h3>
-				<h4 class="mbr-section-subtitle mbr-fonts-style align-center mb-0 mt-4 display-7"></h4>
-			</div>
-			<div class="row justify-content-center mt-4">
-				<div class="col-lg-8 mx-auto mbr-form" data-form-type="formoid">
-					<form action="https://mobirise.eu/" method="POST" class="mbr-form form-with-styler"
-						data-form-title="Form Name"><input type="hidden" name="email" data-form-email="true"
-							value="uqVkStbkXujlzPZfea/reHeMNB5NdJEAo6Yxqhy6wQR8FKnmVB8Bik226RqTJZI+ZgWKHjoMffMgMCJjWENj5R/bedNk/Ws5mJsE79jTHU95/+yRa4s/9Sdns/KVHZz+">
-						<div class="row">
-							<div hidden="hidden" data-form-alert="" class="alert alert-success col-12">Thanks for
-								filling out the form!</div>
-							<div hidden="hidden" data-form-alert-danger="" class="alert alert-danger col-12">
-								Oops...! some problem!
-							</div>
-						</div>
-						<div class="dragArea row">
-							<div class="col-md col-sm-12 form-group mb-3" data-for="name">
-								<input type="text" name="name" placeholder="Name" data-form-field="name"
-									class="form-control" value="" id="name-form02-6">
-							</div>
-							<div class="col-md col-sm-12 form-group mb-3" data-for="email">
-								<input type="email" name="email" placeholder="Email" data-form-field="email"
-									class="form-control" value="" id="email-form02-6">
-							</div>
-							<div class="col-12 form-group mb-3" data-for="phone">
-								<input type="tel" name="phone" placeholder="Phone" data-form-field="phone"
-									class="form-control" value="" id="phone-form02-6">
-							</div>
-							<div class="col-12 form-group mb-3" data-for="textarea">
-								<textarea name="textarea" placeholder="Message" data-form-field="textarea"
-									class="form-control" id="textarea-form02-6"></textarea>
-							</div>
-							<div class="col-lg-12 col-md-12 col-sm-12 align-center mbr-section-btn">
-								<button type="submit" class="btn btn-primary display-7">Send message</button>
-							</div>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-	</section>
-
-	<section data-bs-version="5.1" class="footer1 programm5 cid-tJS9NNcTLZ" once="footers" id="footer03-8">
-
-		<div class="container">
-			<div class="row">
-
-				<div class="row-links mb-4">
-					<ul class="header-menu">
-
-				</div>
-
-				<div class="col-12">
-					<div class="social-row">
-						<div class="soc-item">
-							<a href="https://github.com/pavviaz/DeepScriptum" target="_blank">
-								<span class="mbr-iconfont display-7 mbri-github"></span>
-							</a>
-
-						</div>
-					</div>
-					<div class="col-12 mt-5">
-						<p class="mbr-fonts-style copyright display-7"> </p>
-					</div>
-				</div>
-			</div>
-	</section>
-	<section class="display-7"
-		style="padding: 0;align-items: center;justify-content: center;flex-wrap: wrap;    align-content: center;display: flex;position: relative;height: 4rem;">
-		<a href="https://mobiri.se/3732868"
-			style="flex: 1 1;height: 4rem;position: absolute;width: 100%;z-index: 1;"><img alt="" style="height: 4rem;"
-				src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="></a>
-		<p style="margin: 0;text-align: center;" class="display-7">‌</p><a style="z-index:1"
-			href="https://mobirise.com/builder/ai-website-builder.html">Free AI Website Software</a>
-	</section>
-	<script src="/assets/bootstrap/js/bootstrap.bundle.min.js"></script>
-	<script src="/assets/smoothscroll/smooth-scroll.js"></script>
-	<script src="/assets/ytplayer/index.js"></script>
-	<script src="/assets/theme/js/script.js"></script>
-	<script src="/assets/formoid/formoid.min.js"></script>
-
-	<input name="animation" type="hidden">
-
-	<script>
-		function eraseCookie(name) {   
-			document.cookie = name+'=; Max-Age=-99999999;';  
-		}
-
-		function getCookie(name) {
-			const value = `; ${document.cookie}`;
-			const parts = value.split(`; ${name}=`);
-			if (parts.length === 2) return parts.pop().split(';').shift();
-		}
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const hasCookie = getCookie("ds_auth");
+        document.addEventListener('DOMContentLoaded', function () {
+            const authToken = localStorage.getItem("ds_auth_token");
             const signInButton = document.getElementById('signin_button');
             const signUpButton = document.getElementById('signup_button');
             const tryButton = document.getElementById('try_button');
             const logOutButton = document.getElementById('logout_button');
 
-            if (hasCookie) {
-                signInButton.style.display = 'none';
-                signUpButton.style.display = 'none';
-                logOutButton.style.display = 'block';
-                tryButton.querySelector('a').href = '/home';
+            if (authToken) {
+                if (signInButton) signInButton.style.display = 'none';
+                if (signUpButton) signUpButton.style.display = 'none';
+                if (logOutButton) logOutButton.style.display = 'inline-block';
+                if (tryButton) tryButton.href = '/home';
             } else {
-                signInButton.style.display = 'block';
-                signUpButton.style.display = 'block';
-                logOutButton.style.display = 'none';
-                tryButton.querySelector('a').href = '/auth/login';
+                if (signInButton) signInButton.style.display = 'inline-block';
+                if (signUpButton) signUpButton.style.display = 'inline-block';
+                if (logOutButton) logOutButton.style.display = 'none';
+                if (tryButton) tryButton.href = '/auth/login';
+            }
+
+
+            const currentYearElement = document.getElementById('currentYear');
+            if (currentYearElement) {
+                currentYearElement.textContent = new Date().getFullYear();
             }
         });
 
-        document.getElementById('try_button').addEventListener('click', function() {
-			let cookie = getCookie("ds_auth")
 
-			if (!cookie) {
-				window.location.href = "/auth/login";
-			}
+        const tryButton = document.getElementById('try_button');
+        if (tryButton) {
+
+        }
+
+        const signInButton = document.getElementById('signin_button');
+        if (signInButton) {
+            signInButton.addEventListener('click', function (event) {
+                event.preventDefault();
+                window.location.href = "/auth/login";
+            });
+        }
+
+
+        const logOutButton = document.getElementById('logout_button');
+        if (logOutButton) {
+            logOutButton.addEventListener('click', function () {
+                localStorage.removeItem("ds_auth_token");
+                window.location.reload();
+            });
+        }
+
+
+        const animatedElements = document.querySelectorAll('.animate-fadeInUp, .feature-card, .benefit-card, .contact-form-container');
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const delay = parseFloat(entry.target.style.animationDelay) || 0;
+                    setTimeout(() => {
+                        entry.target.classList.add('in-view');
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }, delay * 1000);
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        animatedElements.forEach(el => {
+
+            if (!el.classList.contains('hero-content')) {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(20px)';
+            }
+            observer.observe(el);
         });
 
-        document.getElementById('signin_button').addEventListener('click', function() {
-			window.location.href = "/auth/login";
-        });
-
-        document.getElementById('logout_button').addEventListener('click', function() {
-			eraseCookie("ds_auth")
-			window.location.reload();
-        });
     </script>
 
 </body>

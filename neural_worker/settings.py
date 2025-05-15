@@ -9,7 +9,7 @@ class ToolConfig:
 
 class NWSettings(BaseSettings):
     OPENAI_KEY: str = ""
-    BASE_OPENAI_URL: str = ""
+    PROXY: str = ""
     MODEL_NAME: str = "gpt-4o"
 
     class Config(ToolConfig):
